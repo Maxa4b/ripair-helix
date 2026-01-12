@@ -55,6 +55,18 @@ jobs:
 
           echo "[helix] backend: composer + artisan caches"
           cd backend
+          echo "[helix] ensure writable storage + cache"
+          if sudo -n true 2>/dev/null; then
+            ME="$(whoami)"
+            TARGET_GROUP="www-data"
+            if ! getent group "$TARGET_GROUP" >/dev/null 2>&1; then
+              TARGET_GROUP="$ME"
+            fi
+            sudo chown -R "$ME":"$TARGET_GROUP" storage bootstrap/cache
+            sudo chmod -R ug+rwX storage bootstrap/cache
+          else
+            echo "[helix] WARN: sudo not available; caches may fail if permissions are too strict."
+          fi
           command -v composer >/dev/null 2>&1 || { echo "[helix] ERROR: composer missing" >&2; exit 1; }
           composer install --no-interaction --no-dev --prefer-dist --optimize-autoloader
           php artisan optimize:clear || true
