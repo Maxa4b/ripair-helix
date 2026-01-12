@@ -72,4 +72,4 @@ jobs:
           npm run build
 
           echo "[helix] deploy OK"
-EOF
+          EOF
