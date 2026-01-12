@@ -21,6 +21,56 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/auth/login', [AuthController::class, 'login']);
 
+Route::get('/health', function () {
+    $gitDir = base_path('.git');
+    $head = null;
+
+    $resolveRef = function (string $ref) use ($gitDir): ?string {
+        $refPath = $gitDir . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $ref);
+        if (is_file($refPath)) {
+            $value = trim((string) file_get_contents($refPath));
+            return $value !== '' ? $value : null;
+        }
+
+        $packed = $gitDir . DIRECTORY_SEPARATOR . 'packed-refs';
+        if (is_file($packed)) {
+            $lines = file($packed, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+            foreach ($lines as $line) {
+                if ($line === '' || str_starts_with($line, '#') || str_starts_with($line, '^')) {
+                    continue;
+                }
+                [$hash, $refName] = array_pad(preg_split('/\s+/', trim($line), 2) ?: [], 2, null);
+                if ($refName === $ref && is_string($hash) && $hash !== '') {
+                    return $hash;
+                }
+            }
+        }
+
+        return null;
+    };
+
+    $headFile = $gitDir . DIRECTORY_SEPARATOR . 'HEAD';
+    if (is_file($headFile)) {
+        $raw = trim((string) file_get_contents($headFile));
+        if (str_starts_with($raw, 'ref: ')) {
+            $ref = trim(substr($raw, 5));
+            $head = $ref !== '' ? $resolveRef($ref) : null;
+        } elseif ($raw !== '') {
+            $head = $raw;
+        }
+    }
+
+    $short = is_string($head) && $head !== '' ? substr($head, 0, 12) : null;
+
+    return response()->json([
+        'ok' => true,
+        'service' => 'helix-backend',
+        'env' => config('app.env'),
+        'commit' => $short,
+        'time' => now()->toISOString(),
+    ]);
+});
+
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me', [AuthController::class, 'me']);
