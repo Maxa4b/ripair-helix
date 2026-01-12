@@ -1,0 +1,48 @@
+:root {
+  font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  line-height: 1.4;
+  font-weight: 400;
+  color: #0f172a;
+  background-color: #f1f5f9;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: #f1f5f9;
+}
+
+a {
+  color: inherit;
+}
+
+.gaulois-nav-link {
+  color: #94a3b8;
+  background: transparent;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.gaulois-nav-link:hover,
+.gaulois-nav-link:focus-visible {
+  background: rgba(14, 116, 144, 0.2);
+  color: #f8fafc;
+}
+
+.gaulois-nav-link--active {
+  background: rgba(14, 116, 144, 0.35);
+  color: #f8fafc;
+  font-weight: 600;
+}
+
+.gaulois-nav-link--active:hover,
+.gaulois-nav-link--active:focus-visible {
+  background: rgba(14, 116, 144, 0.35);
+  color: #e2e8f0;
+}
