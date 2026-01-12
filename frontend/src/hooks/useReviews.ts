@@ -12,6 +12,8 @@ export type CustomerReview = {
   moderated_at: string | null;
   moderated_by: number | null;
   admin_note: string | null;
+  image_path: string | null;
+  image_url: string | null;
   source_page: string | null;
   created_at: string | null;
   updated_at: string | null;
@@ -56,4 +58,3 @@ export function useModerateReview() {
     },
   });
 }
-

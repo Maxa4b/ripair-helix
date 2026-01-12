@@ -23,6 +23,7 @@ return new class extends Migration
             $table->timestamp('moderated_at')->nullable();
             $table->unsignedBigInteger('moderated_by')->nullable(); // helix_users.id
             $table->string('admin_note', 255)->nullable();
+            $table->string('image_path', 255)->nullable();
             $table->char('ip_hash', 64)->nullable();
             $table->string('user_agent', 255)->nullable();
             $table->string('source_page', 120)->nullable();
@@ -38,4 +39,3 @@ return new class extends Migration
         Schema::dropIfExists('customer_reviews');
     }
 };
-

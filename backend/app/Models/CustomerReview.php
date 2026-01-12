@@ -21,6 +21,7 @@ class CustomerReview extends Model
         'moderated_at',
         'moderated_by',
         'admin_note',
+        'image_path',
         'ip_hash',
         'user_agent',
         'source_page',
@@ -32,4 +33,3 @@ class CustomerReview extends Model
         'moderated_at' => 'datetime',
     ];
 }
-

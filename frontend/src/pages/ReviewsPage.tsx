@@ -5,7 +5,7 @@ import { useModerateReview, useReviews, type CustomerReview } from '../hooks/use
 type FilterState = 'pending' | 'approved' | 'rejected' | 'all';
 
 function formatDate(iso?: string | null): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   return new Date(iso).toLocaleString('fr-FR', {
     day: '2-digit',
     month: '2-digit',
@@ -17,7 +17,7 @@ function formatDate(iso?: string | null): string {
 
 function stars(rating: number): string {
   const safe = Math.max(1, Math.min(5, rating || 0));
-  return '★'.repeat(safe);
+  return String.fromCharCode(9733).repeat(safe);
 }
 
 function getDisplayName(review: CustomerReview): string {
@@ -30,7 +30,7 @@ export default function ReviewsPage() {
   const { user } = useAuth();
   const canModerate = user?.role === 'owner' || user?.role === 'manager';
 
-  const [filter, setFilter] = useState<FilterState>('pending');
+  const [filter, setFilter] = useState<FilterState>('all');
   const [search, setSearch] = useState('');
   const [feedback, setFeedback] = useState('');
   const [notesDraft, setNotesDraft] = useState<Record<number, string>>({});
@@ -39,7 +39,7 @@ export default function ReviewsPage() {
     () => ({
       status: filter,
       search: search.trim() || undefined,
-      limit: 200,
+      limit: 500,
     }),
     [filter, search],
   );
@@ -52,15 +52,17 @@ export default function ReviewsPage() {
 
   const handleModerate = async (review: CustomerReview, status: 'approved' | 'rejected') => {
     if (!canModerate) return;
-    if (
-      !window.confirm(
-        status === 'approved'
-          ? `Valider l'avis de ${getDisplayName(review)} ?`
-          : `Refuser l'avis de ${getDisplayName(review)} ?`,
-      )
-    ) {
-      return;
-    }
+
+    const actionLabel =
+      status === 'approved'
+        ? review.status === 'rejected'
+          ? 'Re-valider'
+          : 'Valider'
+        : review.status === 'approved'
+          ? 'Desactiver'
+          : 'Desactiver';
+
+    if (!window.confirm(`${actionLabel} l'avis de ${getDisplayName(review)} ?`)) return;
 
     try {
       await moderateMutation.mutateAsync({
@@ -68,7 +70,13 @@ export default function ReviewsPage() {
         status,
         admin_note: notesDraft[review.id] ? notesDraft[review.id] : null,
       });
-      showFeedback(status === 'approved' ? 'Avis validé.' : 'Avis refusé.');
+
+      if (status === 'approved') {
+        showFeedback(review.status === 'rejected' ? 'Avis re-valide.' : 'Avis valide.');
+      } else {
+        showFeedback(review.status === 'approved' ? 'Avis desactive.' : 'Avis refuse.');
+      }
+
       setNotesDraft((prev) => {
         const next = { ...prev };
         delete next[review.id];
@@ -76,7 +84,7 @@ export default function ReviewsPage() {
       });
     } catch (error) {
       console.error(error);
-      window.alert("Impossible de modérer l'avis (API).");
+      window.alert("Impossible de moderer l'avis (API).");
     }
   };
 
@@ -85,7 +93,7 @@ export default function ReviewsPage() {
       <div style={pageStyle}>
         <header style={headerStyle}>
           <h1 style={{ margin: 0 }}>Avis</h1>
-          <p style={{ margin: 0, color: '#475569' }}>Accès réservé aux comptes owner/manager.</p>
+          <p style={{ margin: 0, color: '#475569' }}>Acces reserve aux comptes owner/manager.</p>
         </header>
       </div>
     );
@@ -97,13 +105,13 @@ export default function ReviewsPage() {
         <div>
           <h1 style={{ margin: 0 }}>Avis</h1>
           <p style={{ margin: '6px 0 0', color: '#475569' }}>
-            Valide ou refuse les avis avant publication sur le site.
+            Active ou desactive les avis avant publication.
           </p>
         </div>
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Rechercher (commentaire, nom)…"
+          placeholder="Rechercher (commentaire, nom)..."
           style={searchStyle}
         />
       </header>
@@ -123,10 +131,10 @@ export default function ReviewsPage() {
             En attente
           </FilterChip>
           <FilterChip active={filter === 'approved'} onClick={() => setFilter('approved')}>
-            Validés
+            Actifs
           </FilterChip>
           <FilterChip active={filter === 'rejected'} onClick={() => setFilter('rejected')}>
-            Refusés
+            Desactives
           </FilterChip>
           <FilterChip active={filter === 'all'} onClick={() => setFilter('all')}>
             Tous
@@ -134,15 +142,18 @@ export default function ReviewsPage() {
         </div>
 
         {reviewsQuery.isLoading ? (
-          <p style={{ margin: 0, color: '#475569' }}>Chargement…</p>
+          <p style={{ margin: 0, color: '#475569' }}>Chargement...</p>
         ) : reviewsQuery.isError ? (
           <p style={{ margin: 0, color: '#b91c1c' }}>Impossible de charger les avis.</p>
         ) : reviews.length === 0 ? (
-          <p style={{ margin: 0, color: '#475569' }}>Aucun avis dans cette catégorie.</p>
+          <p style={{ margin: 0, color: '#475569' }}>Aucun avis dans cette categorie.</p>
         ) : (
           <div style={cardGrid}>
             {reviews.map((review) => {
               const isPending = review.status === 'pending';
+              const isApproved = review.status === 'approved';
+              const isRejected = review.status === 'rejected';
+
               return (
                 <article key={review.id} style={cardStyle}>
                   <header style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
@@ -152,7 +163,7 @@ export default function ReviewsPage() {
                         <span style={{ color: '#64748b', fontWeight: 600 }}>({review.rating}/5)</span>
                       </div>
                       <div style={{ color: '#475569', fontSize: 13 }}>
-                        {getDisplayName(review)} · {formatDate(review.created_at)}
+                        {getDisplayName(review)} - {formatDate(review.created_at)}
                       </div>
                       {review.source_page && (
                         <div style={{ color: '#94a3b8', fontSize: 12 }}>Source : {review.source_page}</div>
@@ -164,28 +175,41 @@ export default function ReviewsPage() {
                         borderRadius: 999,
                         fontSize: 12,
                         fontWeight: 800,
-                        background:
-                          review.status === 'approved'
-                            ? '#dcfce7'
-                            : review.status === 'rejected'
-                              ? '#fee2e2'
-                              : '#fff7ed',
-                        color:
-                          review.status === 'approved'
-                            ? '#166534'
-                            : review.status === 'rejected'
-                              ? '#b91c1c'
-                              : '#9a3412',
+                        background: isApproved ? '#dcfce7' : isRejected ? '#fee2e2' : '#fff7ed',
+                        color: isApproved ? '#166534' : isRejected ? '#b91c1c' : '#9a3412',
                         border: '1px solid rgba(15,23,42,0.08)',
                       }}
                     >
-                      {review.status === 'approved' ? 'Validé' : review.status === 'rejected' ? 'Refusé' : 'En attente'}
+                      {isApproved ? 'Actif' : isRejected ? 'Desactive' : 'En attente'}
                     </span>
                   </header>
 
                   <p style={{ margin: 0, color: '#0f172a', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                     {review.comment}
                   </p>
+
+                  {review.image_url && (
+                    <a
+                      href={review.image_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ display: 'block', marginTop: 10, textDecoration: 'none' }}
+                      title="Ouvrir l'image"
+                    >
+                      <img
+                        src={review.image_url}
+                        alt=""
+                        style={{
+                          width: '100%',
+                          height: 160,
+                          objectFit: 'cover',
+                          borderRadius: 12,
+                          border: '1px solid rgba(15,23,42,0.10)',
+                        }}
+                        loading="lazy"
+                      />
+                    </a>
+                  )}
 
                   <footer style={cardFooterStyle}>
                     <label style={{ ...labelStyle, flex: 1, minWidth: 220 }}>
@@ -200,37 +224,42 @@ export default function ReviewsPage() {
                         }
                         placeholder="Ex: spam / hors sujet / OK"
                         style={inputStyle}
-                        disabled={!isPending || moderateMutation.isPending}
+                        disabled={moderateMutation.isPending}
                       />
                     </label>
 
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <button
-                        type="button"
-                        onClick={() => handleModerate(review, 'approved')}
-                        style={{
-                          ...actionButton,
-                          background: isPending ? '#dcfce7' : '#e2e8f0',
-                          color: isPending ? '#166534' : '#475569',
-                          cursor: isPending ? 'pointer' : 'not-allowed',
-                        }}
-                        disabled={!isPending || moderateMutation.isPending}
-                      >
-                        ✓ Valider
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleModerate(review, 'rejected')}
-                        style={{
-                          ...actionButton,
-                          background: isPending ? '#fee2e2' : '#e2e8f0',
-                          color: isPending ? '#b91c1c' : '#475569',
-                          cursor: isPending ? 'pointer' : 'not-allowed',
-                        }}
-                        disabled={!isPending || moderateMutation.isPending}
-                      >
-                        ✕ Refuser
-                      </button>
+                      {(isPending || isRejected) && (
+                        <button
+                          type="button"
+                          onClick={() => handleModerate(review, 'approved')}
+                          style={{
+                            ...actionButton,
+                            background: '#dcfce7',
+                            color: '#166534',
+                            cursor: 'pointer',
+                          }}
+                          disabled={moderateMutation.isPending}
+                        >
+                          {isRejected ? 'Re-valider' : 'Valider'}
+                        </button>
+                      )}
+
+                      {(isPending || isApproved) && (
+                        <button
+                          type="button"
+                          onClick={() => handleModerate(review, 'rejected')}
+                          style={{
+                            ...actionButton,
+                            background: isApproved ? '#fee2e2' : '#fff7ed',
+                            color: isApproved ? '#b91c1c' : '#9a3412',
+                            cursor: 'pointer',
+                          }}
+                          disabled={moderateMutation.isPending}
+                        >
+                          X Desactiver
+                        </button>
+                      )}
                     </div>
                   </footer>
                 </article>
@@ -363,4 +392,3 @@ const feedbackButton: React.CSSProperties = {
   cursor: 'pointer',
   fontWeight: 700,
 };
-

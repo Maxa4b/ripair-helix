@@ -12,6 +12,10 @@ class CustomerReviewResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $publicSite = rtrim((string) env('PUBLIC_SITE_URL', 'https://ripair.shop'), '/');
+        $imagePath = is_string($this->image_path ?? null) ? trim((string) $this->image_path) : '';
+        $imageUrl = $imagePath !== '' ? ($publicSite . '/' . ltrim($imagePath, '/')) : null;
+
         return [
             'id' => $this->id,
             'rating' => $this->rating,
@@ -23,10 +27,11 @@ class CustomerReviewResource extends JsonResource
             'moderated_at' => optional($this->moderated_at)->toISOString(),
             'moderated_by' => $this->moderated_by,
             'admin_note' => $this->admin_note,
+            'image_path' => $imagePath !== '' ? $imagePath : null,
+            'image_url' => $imageUrl,
             'source_page' => $this->source_page,
             'created_at' => optional($this->created_at)->toISOString(),
             'updated_at' => optional($this->updated_at)->toISOString(),
         ];
     }
 }
-
