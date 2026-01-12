@@ -46,6 +46,10 @@ jobs:
           echo "[helix] deploy dir: $DIR"
 
           cd "$DIR"
+          if [ ! -d .git ]; then
+            git init
+            git remote add origin https://github.com/Maxa4b/ripair-helix.git
+          fi
           git remote set-url origin https://github.com/Maxa4b/ripair-helix.git
           git fetch --prune origin
           git reset --hard origin/master
@@ -70,4 +74,3 @@ jobs:
 
           echo "[helix] deploy OK"
 EOF
-
