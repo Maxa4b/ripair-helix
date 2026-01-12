@@ -184,6 +184,17 @@ export default function AppLayout() {
             Avis
           </NavLink>
           <NavLink
+            to="/caca"
+            style={linkStyle}
+            className={({ isActive }) =>
+              isGaulois
+                ? `gaulois-nav-link${isActive ? ' gaulois-nav-link--active' : ''}`
+                : undefined
+            }
+          >
+            Caca
+          </NavLink>
+          <NavLink
             to="/availability"
             style={linkStyle}
             className={({ isActive }) =>

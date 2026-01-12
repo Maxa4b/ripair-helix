@@ -13,6 +13,7 @@ import ToolsPage from './pages/ToolsPage';
 import LivreoPage from './pages/LivreoPage';
 import RHCatalogoPage from './pages/RHCatalogoPage';
 import ReviewsPage from './pages/ReviewsPage';
+import CacaPage from './pages/CacaPage';
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
             <Route path="appointments" element={<AppointmentsPage />} />
             <Route path="technicians" element={<TechniciansPage />} />
             <Route path="reviews" element={<ReviewsPage />} />
+            <Route path="caca" element={<CacaPage />} />
             <Route path="availability" element={<AvailabilityPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="tools" element={<ToolsPage />} />
