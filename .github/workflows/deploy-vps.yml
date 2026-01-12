@@ -1,0 +1,73 @@
+name: Deploy VPS (Helix)
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch: {}
+
+concurrency:
+  group: helix-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          PORT="${{ secrets.VPS_PORT }}"
+          if [ -z "${PORT}" ]; then PORT="22"; fi
+          ssh-keyscan -p "$PORT" -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy on VPS
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          HELIX_DIR: ${{ secrets.VPS_HELIX_DIR }}
+        run: |
+          set -euo pipefail
+          : "${VPS_HOST:?Missing GitHub secret VPS_HOST}"
+          : "${VPS_USER:?Missing GitHub secret VPS_USER}"
+          PORT="${VPS_PORT:-22}"
+
+          ssh -p "$PORT" "${VPS_USER}@${VPS_HOST}" "HELIX_DIR='${HELIX_DIR}' bash -s" <<'EOF'
+          set -euo pipefail
+
+          DIR="${HELIX_DIR:-$HOME/opt/ripair/site/helix}"
+          echo "[helix] deploy dir: $DIR"
+
+          cd "$DIR"
+          git remote set-url origin https://github.com/Maxa4b/ripair-helix.git
+          git fetch --prune origin
+          git reset --hard origin/master
+
+          echo "[helix] backend: composer + artisan caches"
+          cd backend
+          command -v composer >/dev/null 2>&1 || { echo "[helix] ERROR: composer missing" >&2; exit 1; }
+          composer install --no-interaction --no-dev --prefer-dist --optimize-autoloader
+          php artisan optimize:clear || true
+          php artisan cache:clear || true
+          php artisan config:cache
+          php artisan event:cache || true
+          php artisan route:cache || true
+          php artisan view:cache || true
+          php artisan queue:restart || true
+
+          echo "[helix] frontend: npm build"
+          cd ../frontend
+          command -v npm >/dev/null 2>&1 || { echo "[helix] ERROR: npm missing" >&2; exit 1; }
+          npm ci
+          npm run build
+
+          echo "[helix] deploy OK"
+EOF
+
