@@ -13,30 +13,29 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      VPS_HOST: ${{ vars.VPS_HOST }}
+      VPS_USER: ${{ vars.VPS_USER }}
+      VPS_PORT: ${{ vars.VPS_PORT }}
+      HELIX_DIR: ${{ vars.VPS_HELIX_DIR }}
 
     steps:
       - name: Setup SSH
         shell: bash
         run: |
           set -euo pipefail
+          : "${VPS_HOST:?Missing GitHub Actions variable VPS_HOST}"
+          : "${VPS_USER:?Missing GitHub Actions variable VPS_USER}"
           mkdir -p ~/.ssh
           echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          PORT="${{ secrets.VPS_PORT || vars.VPS_PORT }}"
-          if [ -z "${PORT}" ]; then PORT="22"; fi
-          ssh-keyscan -p "$PORT" -H "${{ secrets.VPS_HOST || vars.VPS_HOST }}" >> ~/.ssh/known_hosts
+          PORT="${VPS_PORT:-22}"
+          ssh-keyscan -p "$PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts
 
       - name: Deploy on VPS
         shell: bash
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST || vars.VPS_HOST }}
-          VPS_USER: ${{ secrets.VPS_USER || vars.VPS_USER }}
-          VPS_PORT: ${{ secrets.VPS_PORT || vars.VPS_PORT }}
-          HELIX_DIR: ${{ secrets.VPS_HELIX_DIR || vars.VPS_HELIX_DIR }}
         run: |
           set -euo pipefail
-          : "${VPS_HOST:?Missing GitHub secret VPS_HOST}"
-          : "${VPS_USER:?Missing GitHub secret VPS_USER}"
           PORT="${VPS_PORT:-22}"
 
           ssh -p "$PORT" "${VPS_USER}@${VPS_HOST}" "HELIX_DIR='${HELIX_DIR}' bash -s" <<'EOF'
