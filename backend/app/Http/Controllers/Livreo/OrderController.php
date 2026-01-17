@@ -1168,31 +1168,49 @@ class OrderController extends LivreoBaseController
             $labelUrl = trim((string) ($labels[0] ?? ''));
         }
 
-        // Si l'URL n'a pas été stockée, on tente de la récupérer via la référence Boxtal.
-        if ($labelUrl === '') {
-            $emcRef = trim((string) ($shippingLabel['emc_ref'] ?? ''));
-            if ($emcRef !== '') {
-                try {
-                    $boxtal = BoxtalService::make();
-                    $info = $boxtal->getOrderInformations($emcRef);
-                    if (($info['ok'] ?? false) === true) {
-                        $labelUrl = trim((string) ($info['label_url'] ?? ''));
-                        $labels = array_values(array_filter((array) ($info['labels'] ?? [])));
-                        if ($labelUrl === '' && ! empty($labels)) {
-                            $labelUrl = trim((string) ($labels[0] ?? ''));
-                        }
-                        if ($labelUrl !== '' || ! empty($labels)) {
-                            $shippingLabel['label_url'] = $labelUrl !== '' ? $labelUrl : null;
-                            $shippingLabel['labels'] = $labels;
-                            $metadata['shipping_label'] = $shippingLabel;
-                            $this->ecommerce()->table('orders')->where('id', $id)->update([
-                                'metadata' => json_encode($metadata, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-                            ]);
-                        }
-                    }
-                } catch (\Throwable) {
-                    // ignore
+        $emcRef = trim((string) ($shippingLabel['emc_ref'] ?? ''));
+        $info = null;
+        if ($emcRef !== '') {
+            try {
+                $boxtal = BoxtalService::make();
+                $info = $boxtal->getOrderInformations($emcRef);
+            } catch (\Throwable) {
+                $info = null;
+            }
+        }
+
+        if (is_array($info) && ($info['ok'] ?? false) === true) {
+            $labelUrlFromInfo = trim((string) ($info['label_url'] ?? ''));
+            $labels = array_values(array_filter((array) ($info['labels'] ?? [])));
+            if ($labelUrlFromInfo === '' && ! empty($labels)) {
+                $labelUrlFromInfo = trim((string) ($labels[0] ?? ''));
+            }
+            if ($labelUrl === '' && $labelUrlFromInfo !== '') {
+                $labelUrl = $labelUrlFromInfo;
+            }
+
+            $carrierRef = trim((string) ($info['carrier_reference'] ?? ''));
+            $shouldUpdateMeta = false;
+            if ($labelUrlFromInfo !== '' || ! empty($labels)) {
+                $shippingLabel['label_url'] = $labelUrlFromInfo !== '' ? $labelUrlFromInfo : null;
+                $shippingLabel['labels'] = $labels;
+                $shouldUpdateMeta = true;
+            }
+            if ($carrierRef !== '') {
+                $shippingLabel['carrier_reference'] = $carrierRef;
+                $shouldUpdateMeta = true;
+            }
+
+            if ($shouldUpdateMeta) {
+                $metadata['shipping_label'] = $shippingLabel;
+                $updates = [
+                    'metadata' => json_encode($metadata, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                ];
+                if ($carrierRef !== '') {
+                    $updates['tracking_number'] = $carrierRef;
+                    $updates['carrier_name'] = $this->carrierNameFromOperator((string) ($shippingLabel['operator'] ?? ''));
                 }
+                $this->ecommerce()->table('orders')->where('id', $id)->update($updates);
             }
         }
 

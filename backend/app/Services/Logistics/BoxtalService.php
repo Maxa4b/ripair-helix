@@ -527,13 +527,43 @@ class BoxtalService
         }
 
         $carrierRef = '';
-        try {
-            $node = $xml->xpath('//order/carrier_reference');
-            if (is_array($node) && isset($node[0])) {
-                $carrierRef = (string) $node[0];
+        $carrierPaths = [
+            '//order/carrier_reference',
+            '//order/tracking_number',
+            '//order/tracking',
+            '//order/tracking_reference',
+            '//order/parcel_tracking_number',
+            '//order/parcel/tracking_number',
+            '//order/parcel/tracking',
+            '//order/parcel/reference',
+            '//shipment/tracking_number',
+            '//shipment/tracking',
+            '//order/reference_transporteur',
+            '//order/transporteur_reference',
+        ];
+        foreach ($carrierPaths as $path) {
+            try {
+                $node = $xml->xpath($path);
+                if (is_array($node) && isset($node[0])) {
+                    $candidate = trim((string) $node[0]);
+                    if ($candidate !== '') {
+                        $carrierRef = $candidate;
+                        break;
+                    }
+                }
+            } catch (\Throwable) {
+                // ignore xpath errors
             }
-        } catch (\Throwable) {
-            $carrierRef = '';
+        }
+
+        if ($carrierRef === '') {
+            try {
+                if (preg_match('/<(carrier_reference|tracking_number|tracking)[^>]*>([^<]+)<\\/\\1>/i', $body, $matches)) {
+                    $carrierRef = trim((string) ($matches[2] ?? ''));
+                }
+            } catch (\Throwable) {
+                $carrierRef = '';
+            }
         }
 
         $state = '';
