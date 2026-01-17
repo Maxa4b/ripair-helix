@@ -761,8 +761,19 @@ export default function LivreoPage() {
                               let dashboardUrl = '';
                               if (reference) {
                                 if (provider === 'stripe') {
-                                  const stripePath = reference.startsWith('cs_') ? 'checkout/sessions' : 'payments';
-                                  dashboardUrl = `https://dashboard.stripe.com/${STRIPE_ACCOUNT_ID}/${stripePath}/${reference}`;
+                                  const isTest =
+                                    reference.startsWith('cs_test') ||
+                                    reference.startsWith('pi_test') ||
+                                    reference.startsWith('ch_test') ||
+                                    reference.includes('_test_');
+                                  const stripeMode = isTest ? 'test/' : '';
+                                  const stripeBase = `https://dashboard.stripe.com/${stripeMode}`;
+                                  if (reference.startsWith('cs_')) {
+                                    dashboardUrl = `${stripeBase}checkout/sessions/${reference}`;
+                                  } else {
+                                    const stripeAccountBase = STRIPE_ACCOUNT_ID ? `${stripeBase}${STRIPE_ACCOUNT_ID}/` : stripeBase;
+                                    dashboardUrl = `${stripeAccountBase}payments/${reference}`;
+                                  }
                                 } else if (provider === 'paypal') {
                                   dashboardUrl = `https://www.paypal.com/unifiedtransactions/details/payment/${reference}`;
                                 }
