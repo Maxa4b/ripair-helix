@@ -1610,15 +1610,66 @@ class OrderController extends LivreoBaseController
             $userEmail = $this->ecommerce()->table('users')->where('id', $order->user_id)->value('email');
         }
 
-        $items = $this->ecommerce()
-            ->table('order_items')
-            ->where('order_id', $id)
-            ->get()
-            ->map(function ($item) {
+        $schema = $this->ecommerce()->getSchemaBuilder();
+        $supplierParts = ['p.supplier_reference', 'vp.supplier_reference'];
+        if ($schema->hasColumn('order_items', 'supplier_reference')) {
+            array_unshift($supplierParts, 'oi.supplier_reference');
+        }
+
+        $itemsQuery = $this->ecommerce()
+            ->table('order_items as oi')
+            ->leftJoin('products as p', 'oi.product_id', '=', 'p.id')
+            ->leftJoin('product_variants as pv', 'oi.product_variant_id', '=', 'pv.id')
+            ->leftJoin('products as vp', 'pv.product_id', '=', 'vp.id')
+            ->where('oi.order_id', $id)
+            ->select('oi.id', 'oi.name', 'oi.reference', 'oi.quantity', 'oi.total_ttc')
+            ->selectRaw('COALESCE('.implode(', ', $supplierParts).') as supplier_reference');
+
+        $itemsRaw = $itemsQuery->get();
+        $legacyMap = [];
+
+        foreach ($itemsRaw as $item) {
+            if (! empty($item->supplier_reference)) {
+                continue;
+            }
+            $reference = is_scalar($item->reference) ? trim((string) $item->reference) : '';
+            if ($reference !== '' && preg_match('/^LEGACY-(\d+)$/', $reference, $matches)) {
+                $legacyMap[(int) $item->id] = (int) $matches[1];
+            }
+        }
+
+        $legacyRefs = collect();
+        if ($legacyMap && $schema->hasTable('repairs')) {
+            $legacyColumn = null;
+            if ($schema->hasColumn('repairs', 'supplier_ref')) {
+                $legacyColumn = 'supplier_ref';
+            } elseif ($schema->hasColumn('repairs', 'supplier_reference')) {
+                $legacyColumn = 'supplier_reference';
+            }
+
+            if ($legacyColumn) {
+                $legacyRefs = $this->ecommerce()
+                    ->table('repairs')
+                    ->whereIn('id', array_values($legacyMap))
+                    ->pluck($legacyColumn, 'id');
+            }
+        }
+
+        $items = $itemsRaw
+            ->map(function ($item) use ($legacyMap, $legacyRefs) {
+                $supplierRef = is_scalar($item->supplier_reference) ? trim((string) $item->supplier_reference) : '';
+                if ($supplierRef === '' && isset($legacyMap[(int) $item->id])) {
+                    $legacyRef = $legacyRefs->get($legacyMap[(int) $item->id]);
+                    if (is_string($legacyRef)) {
+                        $supplierRef = trim($legacyRef);
+                    }
+                }
+
                 return [
                     'id' => (int) $item->id,
                     'name' => (string) $item->name,
                     'reference' => $item->reference ? (string) $item->reference : null,
+                    'supplier_reference' => $supplierRef !== '' ? $supplierRef : null,
                     'quantity' => (int) $item->quantity,
                     'total_ttc' => (float) $item->total_ttc,
                 ];

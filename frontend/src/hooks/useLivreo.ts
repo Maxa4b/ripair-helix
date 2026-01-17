@@ -50,6 +50,7 @@ export type LivreoOrderItem = {
   id: number;
   name: string;
   reference: string | null;
+  supplier_reference?: string | null;
   quantity: number;
   total_ttc: number;
 };

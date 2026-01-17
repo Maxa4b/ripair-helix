@@ -341,6 +341,21 @@ export default function LivreoPage() {
 
   const orderDetail = orderDetailQuery.data?.order;
   const supplierOrder = orderDetailQuery.data?.supplier_order ?? null;
+  useEffect(() => {
+    console.log('[Livreo] debug build', new Date().toISOString());
+  }, []);
+
+  useEffect(() => {
+    const items = orderDetailQuery.data?.items ?? [];
+    if (!items.length) return;
+    const debugItems = items.map((item) => ({
+      id: item.id,
+      name: item.name,
+      reference: item.reference,
+      supplier_reference: item.supplier_reference ?? null,
+    }));
+    console.log('[Livreo] supplier_reference', debugItems);
+  }, [orderDetailQuery.data?.items]);
   const orderDetailWorkflowStatus = useMemo(() => {
     if (!orderDetail) return 'paid';
     const status = String(orderDetail.status ?? '');
@@ -710,6 +725,21 @@ export default function LivreoPage() {
                               <div style={{ color: '#64748b', fontSize: 12, marginTop: 2 }}>
                                 {item.reference ?? '—'} - x{item.quantity}
                               </div>
+                              {item.supplier_reference && item.supplier_reference.trim() ? (
+                                <div style={{ color: '#64748b', fontSize: 12, marginTop: 4 }}>
+                                  Ref fournisseur:{' '}
+                                  <a
+                                    href={`https://www.mobilesentrix.eu/catalogsearch/result/?q=${encodeURIComponent(
+                                      item.supplier_reference.trim(),
+                                    )}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    style={{ color: '#0ea5e9', fontWeight: 700, textDecoration: 'none' }}
+                                  >
+                                    {item.supplier_reference.trim()}
+                                  </a>
+                                </div>
+                              ) : null}
                             </div>
                             <div style={{ fontWeight: 900 }}>{formatMoney(item.total_ttc)}</div>
                           </div>
