@@ -914,7 +914,19 @@ export default function LivreoPage() {
                                     <div style={{ minWidth: 0 }}>
                                       <div style={{ fontWeight: 900, color: '#0f172a' }}>{String(shippingLabel?.name ?? 'Boxtal')}</div>
                                       <div style={{ marginTop: 2, color: '#64748b', fontSize: 12 }}>
-                                        Réf. Boxtal : {String(shippingLabel?.emc_ref ?? '—')}
+                                        Réf. Boxtal :{' '}
+                                        {shippingLabel?.emc_ref ? (
+                                          <a
+                                            href={`https://shipping.boxtal.com/fr/fr/centrale-expeditions/mes-commandes/${String(shippingLabel.emc_ref)}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            style={{ color: '#0ea5e9', fontWeight: 700, textDecoration: 'none' }}
+                                          >
+                                            {String(shippingLabel.emc_ref)}
+                                          </a>
+                                        ) : (
+                                          '—'
+                                        )}
                                       </div>
                                       {tracking ? (
                                         <div style={{ marginTop: 2, color: '#64748b', fontSize: 12 }}>
