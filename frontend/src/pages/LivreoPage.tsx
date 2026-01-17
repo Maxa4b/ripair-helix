@@ -73,6 +73,8 @@ const trackingUrlFor = (operator: unknown, tracking: unknown): string | null => 
   return null;
 };
 
+const STRIPE_ACCOUNT_ID = 'acct_1SWKLDJcPc44uraf';
+
 type ShippingChoice = {
   provider?: string | null;
   type?: string | null;
@@ -341,21 +343,7 @@ export default function LivreoPage() {
 
   const orderDetail = orderDetailQuery.data?.order;
   const supplierOrder = orderDetailQuery.data?.supplier_order ?? null;
-  useEffect(() => {
-    console.log('[Livreo] debug build', new Date().toISOString());
-  }, []);
-
-  useEffect(() => {
-    const items = orderDetailQuery.data?.items ?? [];
-    if (!items.length) return;
-    const debugItems = items.map((item) => ({
-      id: item.id,
-      name: item.name,
-      reference: item.reference,
-      supplier_reference: item.supplier_reference ?? null,
-    }));
-    console.log('[Livreo] supplier_reference', debugItems);
-  }, [orderDetailQuery.data?.items]);
+  const orderPayments = orderDetailQuery.data?.payments ?? [];
   const orderDetailWorkflowStatus = useMemo(() => {
     if (!orderDetail) return 'paid';
     const status = String(orderDetail.status ?? '');
@@ -761,6 +749,73 @@ export default function LivreoPage() {
                           </div>
                         </div>
                       </div>
+
+                      {orderPayments.length ? (
+                        <div style={{ border: '1px solid #e2e8f0', borderRadius: 14, padding: 14, background: '#f8fafc' }}>
+                          <strong>Paiement</strong>
+                          <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
+                            {orderPayments.map((payment, idx) => {
+                              const provider = String(payment.provider ?? '').trim().toLowerCase();
+                              const method = String(payment.method ?? '').trim();
+                              const reference = String(payment.transaction_reference ?? '').trim();
+                              let dashboardUrl = '';
+                              if (reference) {
+                                if (provider === 'stripe') {
+                                  const stripePath = reference.startsWith('cs_') ? 'checkout/sessions' : 'payments';
+                                  dashboardUrl = `https://dashboard.stripe.com/${STRIPE_ACCOUNT_ID}/${stripePath}/${reference}`;
+                                } else if (provider === 'paypal') {
+                                  dashboardUrl = `https://www.paypal.com/unifiedtransactions/details/payment/${reference}`;
+                                }
+                              }
+                              const providerLabel = provider ? provider.toUpperCase() : 'Paiement';
+                              const methodLabel = method ? ` - ${method}` : '';
+
+                              return (
+                                <div
+                                  key={`${payment.provider}-${payment.transaction_reference ?? idx}`}
+                                  style={{
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: 12,
+                                    padding: '10px 12px',
+                                    background: '#fff',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    gap: 12,
+                                  }}
+                                >
+                                  <div style={{ minWidth: 0 }}>
+                                    <div style={{ fontWeight: 900, color: '#0f172a' }}>
+                                      {providerLabel}
+                                      {methodLabel}
+                                    </div>
+                                    <div style={{ color: '#64748b', fontSize: 12, marginTop: 2 }}>
+                                      Statut : {payment.status ?? '—'}
+                                    </div>
+                                    {reference ? (
+                                      <div style={{ color: '#64748b', fontSize: 12, marginTop: 2 }}>
+                                        Transaction :{' '}
+                                        {dashboardUrl ? (
+                                          <a
+                                            href={dashboardUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            style={{ color: '#0ea5e9', fontWeight: 700, textDecoration: 'none' }}
+                                          >
+                                            {reference}
+                                          </a>
+                                        ) : (
+                                          reference
+                                        )}
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                  <div style={{ fontWeight: 900 }}>{formatMoney(payment.amount)}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : null}
 
                       <div style={{ border: '1px solid #e2e8f0', borderRadius: 14, padding: 14, background: '#f8fafc' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
