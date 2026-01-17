@@ -758,24 +758,27 @@ export default function LivreoPage() {
                               const provider = String(payment.provider ?? '').trim().toLowerCase();
                               const method = String(payment.method ?? '').trim();
                               const reference = String(payment.transaction_reference ?? '').trim();
+                              const stripeIntent =
+                                provider === 'stripe' ? String(payment.payment_intent ?? '').trim() : '';
+                              const displayReference = stripeIntent || reference;
                               let dashboardUrl = '';
-                              if (reference) {
+                              if (displayReference) {
                                 if (provider === 'stripe') {
                                   const isTest =
-                                    reference.startsWith('cs_test') ||
-                                    reference.startsWith('pi_test') ||
-                                    reference.startsWith('ch_test') ||
-                                    reference.includes('_test_');
+                                    displayReference.startsWith('cs_test') ||
+                                    displayReference.startsWith('pi_test') ||
+                                    displayReference.startsWith('ch_test') ||
+                                    displayReference.includes('_test_');
                                   const stripeMode = isTest ? 'test/' : '';
                                   const stripeBase = `https://dashboard.stripe.com/${stripeMode}`;
-                                  if (reference.startsWith('cs_')) {
-                                    dashboardUrl = `${stripeBase}checkout/sessions/${reference}`;
+                                  if (displayReference.startsWith('cs_')) {
+                                    dashboardUrl = `${stripeBase}checkout/sessions/${displayReference}`;
                                   } else {
                                     const stripeAccountBase = STRIPE_ACCOUNT_ID ? `${stripeBase}${STRIPE_ACCOUNT_ID}/` : stripeBase;
-                                    dashboardUrl = `${stripeAccountBase}payments/${reference}`;
+                                    dashboardUrl = `${stripeAccountBase}payments/${displayReference}`;
                                   }
                                 } else if (provider === 'paypal') {
-                                  dashboardUrl = `https://www.paypal.com/unifiedtransactions/details/payment/${reference}`;
+                                  dashboardUrl = `https://www.paypal.com/unifiedtransactions/details/payment/${displayReference}`;
                                 }
                               }
                               const providerLabel = provider ? provider.toUpperCase() : 'Paiement';
@@ -802,7 +805,7 @@ export default function LivreoPage() {
                                     <div style={{ color: '#64748b', fontSize: 12, marginTop: 2 }}>
                                       Statut : {payment.status ?? '—'}
                                     </div>
-                                    {reference ? (
+                                    {displayReference ? (
                                       <div style={{ color: '#64748b', fontSize: 12, marginTop: 2 }}>
                                         Transaction :{' '}
                                         {dashboardUrl ? (
@@ -812,10 +815,10 @@ export default function LivreoPage() {
                                             rel="noreferrer"
                                             style={{ color: '#0ea5e9', fontWeight: 700, textDecoration: 'none' }}
                                           >
-                                            {reference}
+                                            {displayReference}
                                           </a>
                                         ) : (
-                                          reference
+                                          displayReference
                                         )}
                                       </div>
                                     ) : null}

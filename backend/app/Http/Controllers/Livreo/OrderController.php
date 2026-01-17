@@ -1681,11 +1681,29 @@ class OrderController extends LivreoBaseController
             ->orderByDesc('id')
             ->get()
             ->map(function ($p) {
+                $provider = (string) $p->provider;
+                $transactionRef = $p->transaction_reference ? (string) $p->transaction_reference : null;
+                $paymentIntent = null;
+                if (strtolower($provider) === 'stripe') {
+                    if ($transactionRef && Str::startsWith($transactionRef, 'pi_')) {
+                        $paymentIntent = $transactionRef;
+                    } else {
+                        $payload = $this->decodeJson($p->payload);
+                        $candidate = Arr::get($payload, 'payment_intent.id')
+                            ?? Arr::get($payload, 'checkout_session.payment_intent')
+                            ?? Arr::get($payload, 'session.payment_intent');
+                        if (is_string($candidate) && $candidate !== '') {
+                            $paymentIntent = $candidate;
+                        }
+                    }
+                }
+
                 return [
-                    'provider' => (string) $p->provider,
+                    'provider' => $provider,
                     'method' => (string) $p->method,
                     'status' => (string) $p->status,
-                    'transaction_reference' => $p->transaction_reference ? (string) $p->transaction_reference : null,
+                    'transaction_reference' => $transactionRef,
+                    'payment_intent' => $paymentIntent,
                     'amount' => (float) $p->amount,
                     'currency' => (string) $p->currency,
                     'created_at' => (string) $p->created_at,

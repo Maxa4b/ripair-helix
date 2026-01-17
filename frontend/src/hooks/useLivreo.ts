@@ -60,6 +60,7 @@ export type LivreoPayment = {
   method: string;
   status: string;
   transaction_reference: string | null;
+  payment_intent?: string | null;
   amount: number;
   currency: string;
   created_at: string;
