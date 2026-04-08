@@ -69,6 +69,7 @@ jobs:
           fi
           command -v composer >/dev/null 2>&1 || { echo "[helix] ERROR: composer missing" >&2; exit 1; }
           composer install --no-interaction --no-dev --prefer-dist --optimize-autoloader
+          php artisan migrate --force
           php artisan optimize:clear || true
           php artisan cache:clear || true
           php artisan config:cache
