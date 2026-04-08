@@ -11,6 +11,7 @@ import TechniciansPage from './pages/TechniciansPage';
 import GauloisPage from './pages/GauloisPage';
 import ToolsPage from './pages/ToolsPage';
 import LivreoPage from './pages/LivreoPage';
+import ProspectingPage from './pages/ProspectingPage';
 import RHCatalogoPage from './pages/RHCatalogoPage';
 import ReviewsPage from './pages/ReviewsPage';
 import CacaPage from './pages/CacaPage';
@@ -31,6 +32,7 @@ export default function App() {
             <Route path="availability" element={<AvailabilityPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="tools" element={<ToolsPage />} />
+            <Route path="prospecting" element={<ProspectingPage />} />
             <Route path="gaulois" element={<GauloisPage />} />
             <Route path="livreo" element={<LivreoPage />} />
             <Route path="rhcatalogo" element={<RHCatalogoPage />} />

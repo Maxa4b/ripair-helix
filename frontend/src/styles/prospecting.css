@@ -1,0 +1,353 @@
+.prospecting-page {
+  --prospecting-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 247, 252, 0.96));
+  --prospecting-panel-border: rgba(148, 163, 184, 0.22);
+  --prospecting-shadow: 0 26px 60px rgba(15, 23, 42, 0.12);
+  --prospecting-text: #102033;
+  --prospecting-muted: #5f6f85;
+  --prospecting-surface: rgba(255, 255, 255, 0.96);
+  --prospecting-blue: #2463eb;
+  --prospecting-red: #d93c3c;
+  --prospecting-green: #1f9d61;
+  display: grid;
+  gap: 20px;
+  color: var(--prospecting-text);
+}
+
+.prospecting-hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  padding: 26px 28px;
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at top left, rgba(36, 99, 235, 0.12), transparent 40%),
+    radial-gradient(circle at top right, rgba(31, 157, 97, 0.14), transparent 34%),
+    linear-gradient(145deg, #ffffff 0%, #f4f8ff 55%, #eef5ef 100%);
+  box-shadow: var(--prospecting-shadow);
+}
+
+.prospecting-hero__title {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 0.95;
+}
+
+.prospecting-hero__subtitle {
+  margin: 10px 0 0;
+  max-width: 760px;
+  color: var(--prospecting-muted);
+  font-size: 0.98rem;
+}
+
+.prospecting-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 370px) minmax(0, 1fr);
+  gap: 20px;
+  min-height: 76vh;
+}
+
+.prospecting-panel,
+.prospecting-map-shell {
+  border-radius: 26px;
+  border: 1px solid var(--prospecting-panel-border);
+  background: var(--prospecting-panel);
+  box-shadow: var(--prospecting-shadow);
+  overflow: hidden;
+}
+
+.prospecting-panel {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  align-content: start;
+}
+
+.prospecting-panel__title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.prospecting-field {
+  display: grid;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: var(--prospecting-muted);
+  font-weight: 700;
+}
+
+.prospecting-field input,
+.prospecting-field select,
+.prospecting-field textarea {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.92);
+  font: inherit;
+  color: var(--prospecting-text);
+}
+
+.prospecting-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: var(--prospecting-text);
+}
+
+.prospecting-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.prospecting-stat {
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.prospecting-stat__label {
+  margin: 0;
+  color: var(--prospecting-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.prospecting-stat__value {
+  margin: 8px 0 0;
+  font-size: 1.65rem;
+  font-weight: 900;
+}
+
+.prospecting-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.prospecting-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.84);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.prospecting-chip__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.prospecting-chip__dot--red { background: var(--prospecting-red); }
+.prospecting-chip__dot--blue { background: var(--prospecting-blue); }
+.prospecting-chip__dot--green { background: var(--prospecting-green); }
+
+.prospecting-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.prospecting-button {
+  border: none;
+  border-radius: 14px;
+  padding: 12px 16px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.prospecting-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.prospecting-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.prospecting-button--primary {
+  background: #0f172a;
+  color: #fff;
+}
+
+.prospecting-button--ghost {
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--prospecting-text);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+}
+
+.prospecting-map-shell {
+  position: relative;
+  min-height: 76vh;
+  background:
+    linear-gradient(180deg, rgba(236, 244, 255, 0.84), rgba(248, 250, 252, 0.92)),
+    linear-gradient(90deg, rgba(36, 99, 235, 0.06), transparent 35%),
+    linear-gradient(45deg, rgba(31, 157, 97, 0.06), transparent 40%);
+}
+
+.prospecting-map-shell__map {
+  position: absolute;
+  inset: 0;
+}
+
+.prospecting-map-shell__overlay {
+  position: absolute;
+  inset: 18px;
+  pointer-events: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.prospecting-banner {
+  pointer-events: auto;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.88);
+  color: #fff;
+  min-width: 220px;
+  backdrop-filter: blur(12px);
+}
+
+.prospecting-list {
+  display: grid;
+  gap: 10px;
+}
+
+.prospecting-list-item {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(255, 255, 255, 0.88);
+  cursor: pointer;
+}
+
+.prospecting-list-item--active {
+  border-color: rgba(36, 99, 235, 0.44);
+  box-shadow: 0 10px 30px rgba(36, 99, 235, 0.12);
+}
+
+.prospecting-quick-card {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  width: min(360px, calc(100% - 36px));
+  padding: 16px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  pointer-events: auto;
+}
+
+.prospecting-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.prospecting-status-button {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.prospecting-status-button--active {
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.14);
+}
+
+.prospecting-drawer {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  bottom: 18px;
+  width: min(440px, calc(100vw - 36px));
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 28px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  box-shadow: 0 26px 60px rgba(15, 23, 42, 0.22);
+  z-index: 30;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.prospecting-drawer__header,
+.prospecting-drawer__body {
+  padding: 22px;
+}
+
+.prospecting-drawer__body {
+  overflow: auto;
+  display: grid;
+  gap: 18px;
+}
+
+.prospecting-history {
+  display: grid;
+  gap: 10px;
+}
+
+.prospecting-history-item {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.prospecting-marker {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.88);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.2);
+}
+
+.prospecting-marker--red { background: var(--prospecting-red); }
+.prospecting-marker--blue { background: var(--prospecting-blue); }
+.prospecting-marker--green { background: var(--prospecting-green); }
+
+.prospecting-marker--selected {
+  width: 24px;
+  height: 24px;
+  border-width: 3px;
+}
+
+.prospecting-cluster {
+  min-width: 42px;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, 0.92);
+  color: #fff;
+  border: 3px solid rgba(255, 255, 255, 0.92);
+  box-shadow: 0 16px 28px rgba(15, 23, 42, 0.28);
+  font-weight: 900;
+}
+
+@media (max-width: 1180px) {
+  .prospecting-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .prospecting-map-shell {
+    min-height: 62vh;
+  }
+}

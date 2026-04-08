@@ -15,6 +15,10 @@ use App\Http\Controllers\Livreo\ShipmentController as LivreoShipmentController;
 use App\Http\Controllers\Livreo\SupplierMailController as LivreoSupplierMailController;
 use App\Http\Controllers\Livreo\SupplierOrderController as LivreoSupplierOrderController;
 use App\Http\Controllers\OptionCacheController;
+use App\Http\Controllers\ProspectingCompanyController;
+use App\Http\Controllers\ProspectingExcelSyncController;
+use App\Http\Controllers\ProspectingImportController;
+use App\Http\Controllers\ProspectingStatsController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\SettingController;
 use Illuminate\Support\Facades\Route;
@@ -94,6 +98,16 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('dashboard/summary', DashboardController::class);
 
     Route::post('options-cache/refresh', [OptionCacheController::class, 'refresh']);
+
+    Route::prefix('prospecting')->group(function (): void {
+        Route::get('companies', [ProspectingCompanyController::class, 'index']);
+        Route::get('companies/{company}', [ProspectingCompanyController::class, 'show']);
+        Route::patch('companies/{company}/status', [ProspectingCompanyController::class, 'updateStatus']);
+        Route::patch('companies/{company}', [ProspectingCompanyController::class, 'update']);
+        Route::post('import/companies', [ProspectingImportController::class, 'store']);
+        Route::post('sync/excel', [ProspectingExcelSyncController::class, 'store']);
+        Route::get('stats', ProspectingStatsController::class);
+    });
 
     Route::get('reviews', [CustomerReviewController::class, 'index']);
     Route::patch('reviews/{review}', [CustomerReviewController::class, 'update']);
