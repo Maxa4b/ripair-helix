@@ -32,6 +32,7 @@ type ClusterItem =
     };
 
 const DEFAULT_CENTER = { lat: 46.603354, lng: 1.888334 };
+const VIEWPORT_EMIT_DELAY_MS = 180;
 
 export default function ProspectingMap({ companies, selectedCompanyId, onSelectCompany, onBoundsChange, children }: Props) {
   const { google, isReady, error } = useGoogleMapsApi();
@@ -40,6 +41,8 @@ export default function ProspectingMap({ companies, selectedCompanyId, onSelectC
   const markersRef = useRef<Map<string, MarkerEntry>>(new Map());
   const idleListenerRef = useRef<MapsEventListener | null>(null);
   const clickListenerRef = useRef<MapsEventListener | null>(null);
+  const boundsDebounceRef = useRef<number | null>(null);
+  const lastBoundsRef = useRef<string | null>(null);
   const [zoom, setZoom] = useState(6);
 
   useEffect(() => {
@@ -70,12 +73,12 @@ export default function ProspectingMap({ companies, selectedCompanyId, onSelectC
     idleListenerRef.current?.remove?.();
 
     idleListenerRef.current = mapRef.current.addListener('idle', () => {
+      if (boundsDebounceRef.current !== null) {
+        window.clearTimeout(boundsDebounceRef.current);
+      }
+
       const bounds = mapRef.current?.getBounds?.() ?? null;
       const currentZoom = mapRef.current?.getZoom?.();
-
-      if (typeof currentZoom === 'number') {
-        setZoom(currentZoom);
-      }
 
       if (!bounds) {
         return;
@@ -84,18 +87,32 @@ export default function ProspectingMap({ companies, selectedCompanyId, onSelectC
       const northEast = bounds.getNorthEast();
       const southWest = bounds.getSouthWest();
 
-      onBoundsChange(
-        [
-          southWest.lat(),
-          southWest.lng(),
-          northEast.lat(),
-          northEast.lng(),
-        ].join(','),
-      );
+      boundsDebounceRef.current = window.setTimeout(() => {
+        if (typeof currentZoom === 'number') {
+          setZoom(currentZoom);
+        }
+
+        const nextBounds = [
+          southWest.lat().toFixed(4),
+          southWest.lng().toFixed(4),
+          northEast.lat().toFixed(4),
+          northEast.lng().toFixed(4),
+        ].join(',');
+
+        if (nextBounds === lastBoundsRef.current) {
+          return;
+        }
+
+        lastBoundsRef.current = nextBounds;
+        onBoundsChange(nextBounds);
+      }, VIEWPORT_EMIT_DELAY_MS);
     });
 
     return () => {
       idleListenerRef.current?.remove?.();
+      if (boundsDebounceRef.current !== null) {
+        window.clearTimeout(boundsDebounceRef.current);
+      }
     };
   }, [google, onBoundsChange]);
 
@@ -108,16 +125,6 @@ export default function ProspectingMap({ companies, selectedCompanyId, onSelectC
 
     const map = mapRef.current;
     const nextKeys = new Set(items.map((item) => item.key));
-
-    for (const [key, entry] of markersRef.current.entries()) {
-      if (nextKeys.has(key)) {
-        continue;
-      }
-
-        entry.marker.map = null;
-        entry.marker.setMap?.(null);
-        markersRef.current.delete(key);
-      }
 
     items.forEach((item) => {
       const existing = markersRef.current.get(item.key);
@@ -173,6 +180,16 @@ export default function ProspectingMap({ companies, selectedCompanyId, onSelectC
 
       markersRef.current.set(item.key, { marker, element });
     });
+
+    for (const [key, entry] of markersRef.current.entries()) {
+      if (nextKeys.has(key)) {
+        continue;
+      }
+
+      entry.marker.map = null;
+      entry.marker.setMap?.(null);
+      markersRef.current.delete(key);
+    }
   }, [google, items, onSelectCompany, selectedCompanyId]);
 
   useEffect(() => {
@@ -181,6 +198,9 @@ export default function ProspectingMap({ companies, selectedCompanyId, onSelectC
     return () => {
       idleListenerRef.current?.remove?.();
       clickListenerRef.current?.remove?.();
+      if (boundsDebounceRef.current !== null) {
+        window.clearTimeout(boundsDebounceRef.current);
+      }
 
       markers.forEach((entry) => {
         entry.marker.map = null;

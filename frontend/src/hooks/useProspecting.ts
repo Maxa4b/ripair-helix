@@ -128,6 +128,9 @@ export function useProspectingCompanies(filters: ProspectingFilters) {
 
       return response.data as ProspectingCompanyListResponse;
     },
+    placeholderData: (previousData) => previousData,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 }
 
