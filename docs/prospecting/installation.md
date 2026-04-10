@@ -27,6 +27,13 @@ npm run build
 ### Backend
 - `PROSPECTING_EXCEL_PATH`
 - `PROSPECTING_EXCEL_SHEET`
+- `PROSPECTING_SIRENE_STOCK_URL`
+- `PROSPECTING_SIRENE_MIN_SCORE`
+- `PROSPECTING_SIRENE_NAF_PREFIXES`
+- `PROSPECTING_SIRENE_INCLUDE_KEYWORDS`
+- `PROSPECTING_SIRENE_EXCLUDE_KEYWORDS`
+- `PROSPECTING_GEOCODER_URL`
+- `PROSPECTING_GEOCODER_MIN_SCORE`
 
 ### Frontend
 - `VITE_API_URL`
@@ -41,6 +48,26 @@ npm run build
 php artisan prospecting:import storage/app/private/prospecting/imports/prospects.xlsx --source=annuaire --segment=reparation
 ```
 
+### Import automatique SIRENE
+
+Import depuis un fichier CSV local:
+
+```bash
+php artisan prospecting:auto-import storage/app/private/prospecting/imports/StockEtablissement_utf8.csv --limit=10000 --min-score=55
+```
+
+Import depuis une URL de stock configuree dans `.env`:
+
+```bash
+php artisan prospecting:auto-import --limit=10000 --departments=31,38,69
+```
+
+### Geocodage batch
+
+```bash
+php artisan prospecting:geocode-missing --source=sirene_auto --limit=1000
+```
+
 ### Sync Excel
 
 ```bash
@@ -52,3 +79,4 @@ php artisan prospecting:excel-sync resync --file=storage/app/private/prospecting
 - La cle Google Maps JavaScript est publique par nature cote navigateur: elle doit etre restreinte par domaine/referrer dans Google Cloud.
 - Aucun identifiant base de donnees ne doit rester dans le frontend.
 - Le miroir Excel est operationnel, mais la base Helix reste la source de verite.
+- Pour viser 10k+ entreprises, preferer un stock SIRENE bulk + geocodage batch plutot qu'une generation manuelle via LLM.
