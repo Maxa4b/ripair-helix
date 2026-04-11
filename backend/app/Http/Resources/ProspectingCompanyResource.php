@@ -37,6 +37,7 @@ class ProspectingCompanyResource extends JsonResource
             'last_contact_at' => optional($this->last_contact_at)->toIso8601String(),
             'notes' => $this->notes,
             'excel_row_id' => $this->excel_row_id,
+            'is_disabled' => (bool) $this->is_disabled,
             'version' => $this->version,
             'created_at' => optional($this->created_at)->toIso8601String(),
             'updated_at' => optional($this->updated_at)->toIso8601String(),

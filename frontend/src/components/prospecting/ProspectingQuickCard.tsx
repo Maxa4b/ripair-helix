@@ -9,6 +9,7 @@ type Props = {
   onClose: () => void;
   onOpenDetails: () => void;
   onChangeStatus: (status: ProspectingStatus) => void;
+  onDisable: () => void;
 };
 
 export default function ProspectingQuickCard({
@@ -17,6 +18,7 @@ export default function ProspectingQuickCard({
   onClose,
   onOpenDetails,
   onChangeStatus,
+  onDisable,
 }: Props) {
   const handleCopy = async (value?: string | null, label?: string) => {
     const copied = await copyText(value);
@@ -51,6 +53,11 @@ export default function ProspectingQuickCard({
           <button type="button" className="prospecting-button prospecting-button--primary" onClick={onOpenDetails}>
             Voir fiche
           </button>
+          {!company.email && !company.phone ? (
+            <button type="button" className="prospecting-button prospecting-button--danger" onClick={onDisable} disabled={isSaving}>
+              Desactiver le point
+            </button>
+          ) : null}
         </div>
 
         <div style={{ color: '#475569', fontSize: 14 }}>

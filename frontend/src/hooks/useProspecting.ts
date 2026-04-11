@@ -28,6 +28,7 @@ export type ProspectingCompany = {
   last_contact_at: string | null;
   notes: string | null;
   excel_row_id: string | null;
+  is_disabled: boolean;
   version: number;
   created_at: string | null;
   updated_at: string | null;
@@ -74,6 +75,7 @@ export type ProspectingFilters = {
   contact_owner?: string;
   missing_contact?: boolean;
   only_geocoded?: boolean;
+  include_disabled?: boolean;
   limit?: number;
 };
 
@@ -113,6 +115,7 @@ function buildParams(filters: ProspectingFilters): Record<string, string> {
   if (filters.contact_owner) params.contact_owner = filters.contact_owner;
   if (filters.missing_contact) params.missing_contact = 'true';
   if (typeof filters.only_geocoded === 'boolean') params.only_geocoded = filters.only_geocoded ? 'true' : 'false';
+  if (filters.include_disabled) params.include_disabled = 'true';
   if (typeof filters.limit === 'number') params.limit = String(filters.limit);
 
   return params;

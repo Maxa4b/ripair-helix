@@ -29,6 +29,7 @@ class ProspectingStatsController extends Controller
             'zone',
             'contact_owner',
             'missing_contact',
+            'include_disabled',
         ]);
 
         $cacheKey = 'prospecting_stats:' . md5(json_encode($filters));

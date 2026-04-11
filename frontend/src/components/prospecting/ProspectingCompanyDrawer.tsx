@@ -10,6 +10,7 @@ type Props = {
   onClose: () => void;
   onChangeStatus: (status: ProspectingStatus) => void;
   onSave: (payload: { notes: string | null; contact_owner: string | null }) => void;
+  onDisable: () => void;
 };
 
 export default function ProspectingCompanyDrawer({
@@ -19,6 +20,7 @@ export default function ProspectingCompanyDrawer({
   onClose,
   onChangeStatus,
   onSave,
+  onDisable,
 }: Props) {
   const [owner, setOwner] = useState('');
   const [notes, setNotes] = useState('');
@@ -89,6 +91,11 @@ export default function ProspectingCompanyDrawer({
               >
                 {isSaving ? 'Enregistrement...' : 'Enregistrer'}
               </button>
+              {!company.email && !company.phone ? (
+                <button type="button" className="prospecting-button prospecting-button--danger" onClick={onDisable} disabled={isSaving}>
+                  Desactiver le point
+                </button>
+              ) : null}
             </section>
 
             <section style={{ display: 'grid', gap: 8 }}>

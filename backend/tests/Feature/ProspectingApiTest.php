@@ -30,6 +30,11 @@ class ProspectingApiTest extends TestCase
             'name' => 'Gamma',
             'contact_status' => 'contacte',
         ]));
+        Company::query()->create($this->companyPayload([
+            'name' => 'Disabled',
+            'contact_status' => 'non_contacte',
+            'is_disabled' => true,
+        ]));
 
         $response = $this->getJson('/api/prospecting/stats');
 
@@ -38,6 +43,35 @@ class ProspectingApiTest extends TestCase
             ->assertJsonPath('data.non_contacte', 1)
             ->assertJsonPath('data.en_cours_de_contact', 1)
             ->assertJsonPath('data.contacte', 1);
+    }
+
+    public function test_manager_can_disable_company_and_default_listing_hides_it(): void
+    {
+        $user = $this->createHelixUser('manager');
+        Sanctum::actingAs($user);
+
+        $company = Company::query()->create($this->companyPayload([
+            'name' => 'Hide Me',
+            'version' => 1,
+        ]));
+
+        $patchResponse = $this->patchJson("/api/prospecting/companies/{$company->id}", [
+            'is_disabled' => true,
+            'version' => 1,
+        ]);
+
+        $patchResponse->assertOk()
+            ->assertJsonPath('data.is_disabled', true);
+
+        $this->assertDatabaseHas('companies', [
+            'id' => $company->id,
+            'is_disabled' => true,
+        ]);
+
+        $listResponse = $this->getJson('/api/prospecting/companies');
+
+        $listResponse->assertOk();
+        $this->assertSame([], $listResponse->json('data'));
     }
 
     public function test_status_patch_creates_history_and_increments_version(): void
@@ -114,6 +148,7 @@ class ProspectingApiTest extends TestCase
             'country' => 'France',
             'contact_status' => 'non_contacte',
             'relevance_score' => 50,
+            'is_disabled' => false,
             'version' => 1,
         ], $overrides);
     }

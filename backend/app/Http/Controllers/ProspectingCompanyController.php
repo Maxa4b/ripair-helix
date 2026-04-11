@@ -36,6 +36,7 @@ class ProspectingCompanyController extends Controller
             'contact_owner',
             'missing_contact',
             'only_geocoded',
+            'include_disabled',
         ]));
 
         $query->orderByDesc('relevance_score')->orderBy('name');
@@ -74,6 +75,7 @@ class ProspectingCompanyController extends Controller
             'contact_status' => ['required', Rule::in(['non_contacte', 'en_cours_de_contact', 'contacte'])],
             'contact_owner' => ['nullable', 'string', 'max:190'],
             'notes' => ['nullable', 'string'],
+            'is_disabled' => ['nullable', 'boolean'],
             'version' => ['required', 'integer', 'min:1'],
         ]);
 
@@ -121,6 +123,7 @@ class ProspectingCompanyController extends Controller
             'contact_status' => ['nullable', Rule::in(['non_contacte', 'en_cours_de_contact', 'contacte'])],
             'contact_owner' => ['nullable', 'string', 'max:190'],
             'notes' => ['nullable', 'string'],
+            'is_disabled' => ['nullable', 'boolean'],
             'version' => ['required', 'integer', 'min:1'],
         ]);
 

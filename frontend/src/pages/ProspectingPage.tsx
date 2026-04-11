@@ -136,6 +136,36 @@ export default function ProspectingPage() {
     }
   };
 
+  const handleDisablePoint = async () => {
+    const target = drawerCompany ?? selectedCompany;
+    if (!target) {
+      return;
+    }
+
+    const confirmed = window.confirm(`Masquer ${target.name} de la carte et des listes actives ?`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await updateMutation.mutateAsync({
+        id: target.id,
+        payload: {
+          is_disabled: true,
+          version: target.version,
+        },
+      });
+
+      setSelectedCompanyId(null);
+      if (drawerCompanyId === target.id) {
+        setDrawerCompanyId(null);
+      }
+    } catch (error) {
+      console.error(error);
+      window.alert('Desactivation impossible. Recharge la fiche puis reessaie.');
+    }
+  };
+
   return (
     <div className="prospecting-page">
       <section className="prospecting-hero">
@@ -297,6 +327,7 @@ export default function ProspectingPage() {
                 onClose={() => setSelectedCompanyId(null)}
                 onOpenDetails={() => openDrawer(selectedCompany.id)}
                 onChangeStatus={handleStatusChange}
+                onDisable={handleDisablePoint}
               />
             ) : null}
           </ProspectingMap>
@@ -310,6 +341,7 @@ export default function ProspectingPage() {
         onClose={() => setDrawerCompanyId(null)}
         onChangeStatus={handleStatusChange}
         onSave={handleSaveDetails}
+        onDisable={handleDisablePoint}
       />
     </div>
   );

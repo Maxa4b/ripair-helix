@@ -9,6 +9,10 @@ class CompanyQueryService
 {
     public function applyFilters(Builder $query, array $filters): Builder
     {
+        if (($filters['include_disabled'] ?? 'false') !== 'true') {
+            $query->where('is_disabled', false);
+        }
+
         $statuses = $this->parseList($filters['status'] ?? null);
         if ($statuses !== [] && ! in_array('all', $statuses, true)) {
             $query->whereIn('contact_status', $statuses);

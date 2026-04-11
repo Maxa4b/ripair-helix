@@ -36,6 +36,7 @@ class Company extends Model
         'last_contact_at',
         'notes',
         'excel_row_id',
+        'is_disabled',
         'version',
     ];
 
@@ -43,6 +44,7 @@ class Company extends Model
         'lat' => 'float',
         'lng' => 'float',
         'relevance_score' => 'integer',
+        'is_disabled' => 'boolean',
         'version' => 'integer',
         'first_contact_at' => 'datetime',
         'last_contact_at' => 'datetime',
