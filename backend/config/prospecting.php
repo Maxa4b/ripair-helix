@@ -29,4 +29,12 @@ return [
         'timeout' => (int) env('PROSPECTING_GEOCODER_TIMEOUT', 20),
         'min_score' => (float) env('PROSPECTING_GEOCODER_MIN_SCORE', 0.6),
     ],
+    'contact_enrichment' => [
+        'google_places_api_key' => env('PROSPECTING_GOOGLE_PLACES_API_KEY'),
+        'google_places_search_endpoint' => env('PROSPECTING_GOOGLE_PLACES_SEARCH_ENDPOINT', 'https://places.googleapis.com/v1/places:searchText'),
+        'google_places_details_base' => env('PROSPECTING_GOOGLE_PLACES_DETAILS_BASE', 'https://places.googleapis.com/v1/places'),
+        'http_timeout' => (int) env('PROSPECTING_CONTACT_ENRICHMENT_TIMEOUT', 20),
+        'website_timeout' => (int) env('PROSPECTING_CONTACT_WEBSITE_TIMEOUT', 12),
+        'max_internal_pages' => (int) env('PROSPECTING_CONTACT_MAX_INTERNAL_PAGES', 3),
+    ],
 ];

@@ -34,6 +34,9 @@ npm run build
 - `PROSPECTING_SIRENE_EXCLUDE_KEYWORDS`
 - `PROSPECTING_GEOCODER_URL`
 - `PROSPECTING_GEOCODER_MIN_SCORE`
+- `PROSPECTING_GOOGLE_PLACES_API_KEY`
+- `PROSPECTING_GOOGLE_PLACES_SEARCH_ENDPOINT`
+- `PROSPECTING_GOOGLE_PLACES_DETAILS_BASE`
 
 ### Frontend
 - `VITE_API_URL`
@@ -68,6 +71,14 @@ php artisan prospecting:auto-import --limit=10000 --departments=31,38,69
 php artisan prospecting:geocode-missing --source=sirene_auto --limit=1000
 ```
 
+### Enrichissement contact batch
+
+Necessite une cle serveur Google Places distincte de la cle front Maps JavaScript.
+
+```bash
+php artisan prospecting:enrich-contacts --source=sirene_auto --limit=250
+```
+
 ### Sync Excel
 
 ```bash
@@ -77,6 +88,7 @@ php artisan prospecting:excel-sync resync --file=storage/app/private/prospecting
 ## Notes de securite
 
 - La cle Google Maps JavaScript est publique par nature cote navigateur: elle doit etre restreinte par domaine/referrer dans Google Cloud.
+- La cle `PROSPECTING_GOOGLE_PLACES_API_KEY` doit rester cote backend uniquement et etre restreinte a Places API.
 - Aucun identifiant base de donnees ne doit rester dans le frontend.
 - Le miroir Excel est operationnel, mais la base Helix reste la source de verite.
 - Pour viser 10k+ entreprises, preferer un stock SIRENE bulk + geocodage batch plutot qu'une generation manuelle via LLM.
