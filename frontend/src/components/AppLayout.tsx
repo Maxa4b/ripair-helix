@@ -228,6 +228,17 @@ export default function AppLayout() {
             Outils
           </NavLink>
           <NavLink
+            to="/csv-explorer"
+            style={linkStyle}
+            className={({ isActive }) =>
+              isGaulois
+                ? `gaulois-nav-link${isActive ? ' gaulois-nav-link--active' : ''}`
+                : undefined
+            }
+          >
+            CSV Explorer
+          </NavLink>
+          <NavLink
             to="/prospecting"
             style={linkStyle}
             className={({ isActive }) =>

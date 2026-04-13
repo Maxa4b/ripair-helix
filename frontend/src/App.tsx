@@ -15,6 +15,7 @@ import ProspectingPage from './pages/ProspectingPage';
 import RHCatalogoPage from './pages/RHCatalogoPage';
 import ReviewsPage from './pages/ReviewsPage';
 import CacaPage from './pages/CacaPage';
+import CsvExplorerPage from './pages/CsvExplorerPage';
 
 export default function App() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
             <Route path="availability" element={<AvailabilityPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="tools" element={<ToolsPage />} />
+            <Route path="csv-explorer" element={<CsvExplorerPage />} />
             <Route path="prospecting" element={<ProspectingPage />} />
             <Route path="gaulois" element={<GauloisPage />} />
             <Route path="livreo" element={<LivreoPage />} />
