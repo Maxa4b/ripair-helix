@@ -17,8 +17,91 @@ import type {
 } from '../features/csv-explorer/types';
 
 const FLUSH_INTERVAL_MS = 90;
+const STORAGE_KEY = 'helix.csvExplorer.session.v1';
+const PERSISTED_PREVIEW_ROWS = 300;
+const PERSISTED_RECENT_ROWS = 1200;
+
+type PersistedRemotePayload = {
+  url: string;
+  fileInfo: CsvFileInfo;
+};
+
+type PersistedCsvExplorerSession = {
+  config: CsvExplorerConfig;
+  snapshot: CsvExplorerSnapshot;
+  remotePayload: PersistedRemotePayload | null;
+  savedAt: number;
+};
+
+function hasWindowStorage() {
+  return typeof window !== 'undefined' && typeof window.sessionStorage !== 'undefined';
+}
+
+function buildPersistedWarning(snapshot: CsvExplorerSnapshot): string | null {
+  if (!snapshot.file) {
+    return snapshot.warning;
+  }
+
+  const baseWarning = snapshot.warning ? `${snapshot.warning} ` : '';
+
+  if (snapshot.file.source === 'remote') {
+    return `${baseWarning}Session restauree apres actualisation. Clique sur Relancer pour reprendre la lecture du fichier VPS.`;
+  }
+
+  return `${baseWarning}Session locale restauree apres actualisation. Pour reprendre la lecture, re-selectionne le fichier local.`;
+}
+
+function restorePersistedSession():
+  | {
+      config: CsvExplorerConfig;
+      snapshot: CsvExplorerSnapshot;
+      remotePayload: PersistedRemotePayload | null;
+    }
+  | null {
+  if (!hasWindowStorage()) {
+    return null;
+  }
+
+  try {
+    const raw = window.sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as PersistedCsvExplorerSession;
+    if (!parsed || typeof parsed !== 'object') {
+      return null;
+    }
+
+    const baseSnapshot = createInitialCsvSnapshot();
+    const restoredSnapshot: CsvExplorerSnapshot = {
+      ...baseSnapshot,
+      ...parsed.snapshot,
+      file: parsed.snapshot?.file ?? null,
+      headers: Array.isArray(parsed.snapshot?.headers) ? parsed.snapshot.headers : [],
+      previewRows: Array.isArray(parsed.snapshot?.previewRows) ? parsed.snapshot.previewRows : [],
+      recentRows: Array.isArray(parsed.snapshot?.recentRows) ? parsed.snapshot.recentRows : [],
+      issues: Array.isArray(parsed.snapshot?.issues) ? parsed.snapshot.issues : [],
+    };
+
+    if (restoredSnapshot.file && ['reading', 'analyzing', 'paused'].includes(restoredSnapshot.status)) {
+      restoredSnapshot.status = 'paused';
+      restoredSnapshot.warning = buildPersistedWarning(restoredSnapshot);
+    }
+
+    return {
+      config: parsed.config ?? DEFAULT_CSV_EXPLORER_CONFIG,
+      snapshot: restoredSnapshot,
+      remotePayload: parsed.remotePayload ?? null,
+    };
+  } catch (error) {
+    console.warn('Impossible de restaurer la session CSV Explorer.', error);
+    return null;
+  }
+}
 
 export function useCsvExplorer() {
+  const restoredSession = restorePersistedSession();
   const workerRef = useRef<Worker | null>(null);
   const sessionIdRef = useRef(0);
   const flushTimerRef = useRef<number | null>(null);
@@ -28,15 +111,63 @@ export function useCsvExplorer() {
     url: string;
     fileInfo: CsvFileInfo;
     requestHeaders?: Record<string, string>;
-  } | null>(null);
+  } | null>(
+    restoredSession?.remotePayload
+      ? {
+          ...restoredSession.remotePayload,
+          requestHeaders:
+            typeof window !== 'undefined' && localStorage.getItem('helixToken')
+              ? {
+                  Authorization: `Bearer ${localStorage.getItem('helixToken')}`,
+                }
+              : undefined,
+        }
+      : null,
+  );
 
-  const [config, setConfig] = useState<CsvExplorerConfig>(DEFAULT_CSV_EXPLORER_CONFIG);
-  const [snapshot, setSnapshot] = useState<CsvExplorerSnapshot>(createInitialCsvSnapshot);
+  const [config, setConfig] = useState<CsvExplorerConfig>(
+    restoredSession?.config ?? DEFAULT_CSV_EXPLORER_CONFIG,
+  );
+  const [snapshot, setSnapshot] = useState<CsvExplorerSnapshot>(
+    restoredSession?.snapshot ?? createInitialCsvSnapshot(),
+  );
   const configRef = useRef(config);
 
   useEffect(() => {
     configRef.current = config;
   }, [config]);
+
+  useEffect(() => {
+    if (!hasWindowStorage()) {
+      return;
+    }
+
+    try {
+      const remotePayload = lastRemotePayloadRef.current
+        ? {
+            url: lastRemotePayloadRef.current.url,
+            fileInfo: lastRemotePayloadRef.current.fileInfo,
+          }
+        : null;
+
+      const persistedSnapshot: CsvExplorerSnapshot = {
+        ...snapshot,
+        previewRows: snapshot.previewRows.slice(0, PERSISTED_PREVIEW_ROWS),
+        recentRows: snapshot.recentRows.slice(-PERSISTED_RECENT_ROWS),
+      };
+
+      const payload: PersistedCsvExplorerSession = {
+        config,
+        snapshot: persistedSnapshot,
+        remotePayload,
+        savedAt: Date.now(),
+      };
+
+      window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch (error) {
+      console.warn('Impossible de persister la session CSV Explorer.', error);
+    }
+  }, [config, snapshot]);
 
   const controls = useMemo(
     () => ({
@@ -324,6 +455,10 @@ export function useCsvExplorer() {
     lastRemotePayloadRef.current = null;
     pendingEventsRef.current = [];
     setSnapshot(createInitialCsvSnapshot());
+
+    if (hasWindowStorage()) {
+      window.sessionStorage.removeItem(STORAGE_KEY);
+    }
   };
 
   const restart = () => {
