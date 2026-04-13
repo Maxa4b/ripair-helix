@@ -172,3 +172,15 @@ export interface CsvRemoteListing {
   parent_path: string | null;
   entries: CsvRemoteEntry[];
 }
+
+export type CsvRemoteJobStatus = 'queued' | 'reading' | 'completed' | 'cancelled' | 'error';
+
+export interface CsvRemoteJob {
+  job_id: string;
+  status: CsvRemoteJobStatus;
+  snapshot: CsvExplorerSnapshot;
+  file_path: string;
+  cancel_requested: boolean;
+  created_at: number;
+  updated_at: number;
+}

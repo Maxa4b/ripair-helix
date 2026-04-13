@@ -44,10 +44,6 @@ function buildPersistedWarning(snapshot: CsvExplorerSnapshot): string | null {
 
   const baseWarning = snapshot.warning ? `${snapshot.warning} ` : '';
 
-  if (snapshot.file.source === 'remote') {
-    return `${baseWarning}Session restauree apres actualisation. Clique sur Relancer pour reprendre la lecture du fichier VPS.`;
-  }
-
   return `${baseWarning}Session locale restauree apres actualisation. Pour reprendre la lecture, re-selectionne le fichier local.`;
 }
 
@@ -83,6 +79,10 @@ function restorePersistedSession():
       recentRows: Array.isArray(parsed.snapshot?.recentRows) ? parsed.snapshot.recentRows : [],
       issues: Array.isArray(parsed.snapshot?.issues) ? parsed.snapshot.issues : [],
     };
+
+    if (restoredSnapshot.file?.source === 'remote') {
+      return null;
+    }
 
     if (restoredSnapshot.file && ['reading', 'analyzing', 'paused'].includes(restoredSnapshot.status)) {
       restoredSnapshot.status = 'paused';
@@ -143,6 +143,11 @@ export function useCsvExplorer() {
     }
 
     try {
+      if (snapshot.file?.source === 'remote') {
+        window.sessionStorage.removeItem(STORAGE_KEY);
+        return;
+      }
+
       const remotePayload = lastRemotePayloadRef.current
         ? {
             url: lastRemotePayloadRef.current.url,

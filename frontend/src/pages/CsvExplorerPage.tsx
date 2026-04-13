@@ -9,9 +9,12 @@ import CsvVirtualTable from '../components/csv-explorer/CsvVirtualTable';
 import apiClient from '../api/client';
 import { applyRowFilters } from '../features/csv-explorer/csvExplorerUtils';
 import type { CsvBufferScope, CsvRemoteEntry, CsvSortState } from '../features/csv-explorer/types';
+import { useCsvExplorerJob } from '../hooks/useCsvExplorerJob';
 import { useCsvExplorer } from '../hooks/useCsvExplorer';
 import { useCsvExplorerRemoteFiles } from '../hooks/useCsvExplorerRemoteFiles';
 import '../styles/csv-explorer.css';
+
+const REMOTE_JOB_STORAGE_KEY = 'helix.csvExplorer.remoteJobId';
 
 function buildExportFileName(fileName: string | undefined, scope: CsvBufferScope) {
   const baseName = (fileName ?? 'csv-explorer').replace(/\.[^.]+$/, '');
@@ -23,7 +26,6 @@ export default function CsvExplorerPage() {
     config,
     snapshot,
     openFile,
-    openRemoteFile,
     pause,
     resume,
     cancel,
@@ -41,79 +43,94 @@ export default function CsvExplorerPage() {
   const [browserOpen, setBrowserOpen] = useState(false);
   const [browserPath, setBrowserPath] = useState('');
   const [selectingRemotePath, setSelectingRemotePath] = useState<string | null>(null);
+  const [remoteJobId, setRemoteJobId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    return window.localStorage.getItem(REMOTE_JOB_STORAGE_KEY);
+  });
 
   const deferredSearch = useDeferredValue(search);
   const deferredColumnValue = useDeferredValue(columnValue);
   const remoteFilesQuery = useCsvExplorerRemoteFiles(browserPath, browserOpen);
+  const remoteJobQuery = useCsvExplorerJob(remoteJobId);
+  const remoteSnapshot = remoteJobQuery.data?.snapshot ?? null;
+  const activeSnapshot = remoteSnapshot ?? snapshot;
 
-  const sourceRows = scope === 'recent' ? snapshot.recentRows : snapshot.previewRows;
+  const sourceRows = scope === 'recent' ? activeSnapshot.recentRows : activeSnapshot.previewRows;
 
   useEffect(() => {
-    if (scope === 'recent' && snapshot.recentRows.length === 0 && snapshot.previewRows.length > 0) {
+    if (scope === 'recent' && activeSnapshot.recentRows.length === 0 && activeSnapshot.previewRows.length > 0) {
       setScope('preview');
     }
-  }, [scope, snapshot.previewRows.length, snapshot.recentRows.length]);
+  }, [activeSnapshot.previewRows.length, activeSnapshot.recentRows.length, scope]);
 
   useEffect(() => {
-    if (columnFilter && !snapshot.headers.includes(columnFilter)) {
+    if (columnFilter && !activeSnapshot.headers.includes(columnFilter)) {
       setColumnFilter('');
       setColumnValue('');
     }
 
-    if (sort?.column && !snapshot.headers.includes(sort.column)) {
+    if (sort?.column && !activeSnapshot.headers.includes(sort.column)) {
       setSort(null);
     }
-  }, [columnFilter, sort, snapshot.headers]);
+  }, [activeSnapshot.headers, columnFilter, sort]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (remoteJobId) {
+      window.localStorage.setItem(REMOTE_JOB_STORAGE_KEY, remoteJobId);
+      return;
+    }
+
+    window.localStorage.removeItem(REMOTE_JOB_STORAGE_KEY);
+  }, [remoteJobId]);
 
   const filteredRows = useMemo(
     () =>
       applyRowFilters(
         sourceRows,
-        snapshot.headers,
+        activeSnapshot.headers,
         deferredSearch,
         columnFilter,
         deferredColumnValue,
         sort,
       ),
-    [columnFilter, deferredColumnValue, deferredSearch, snapshot.headers, sort, sourceRows],
+    [activeSnapshot.headers, columnFilter, deferredColumnValue, deferredSearch, sort, sourceRows],
   );
 
-  const handleSelectRemoteFile = (entry: CsvRemoteEntry) => {
-    const token = localStorage.getItem('helixToken');
+  const handleSelectRemoteFile = async (entry: CsvRemoteEntry) => {
     setSelectingRemotePath(entry.path);
 
-    openRemoteFile({
-      url: apiClient.getUri({
-        url: '/csv-explorer/stream',
-        params: { path: entry.path },
-      }),
-      fileInfo: {
-        name: entry.name,
-        size: entry.size ?? 0,
-        type: 'text/csv',
-        lastModified: Date.parse(entry.modified_at) || Date.now(),
-        source: 'remote',
+    try {
+      const response = await apiClient.post('/csv-explorer/jobs', {
         path: entry.path,
-      },
-      requestHeaders:
-        token && token !== 'undefined' && token !== 'null'
-          ? {
-              Authorization: `Bearer ${token}`,
-            }
-          : undefined,
-    });
+        delimiter: config.delimiter,
+        encoding: config.encoding,
+      });
 
-    setBrowserOpen(false);
-    setSelectingRemotePath(null);
+      const job = response.data.data;
+      setRemoteJobId(job.job_id as string);
+      setBrowserOpen(false);
+    } catch (error) {
+      console.error(error);
+      window.alert('Impossible de lancer la lecture serveur du CSV.');
+    } finally {
+      setSelectingRemotePath(null);
+    }
   };
 
   const handleExport = () => {
-    if (filteredRows.length === 0 || snapshot.headers.length === 0) {
+    if (filteredRows.length === 0 || activeSnapshot.headers.length === 0) {
       return;
     }
 
     const csv = Papa.unparse({
-      fields: snapshot.headers,
+      fields: activeSnapshot.headers,
       data: filteredRows.map((row) => row.values),
     });
 
@@ -123,17 +140,74 @@ export default function CsvExplorerPage() {
     const href = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = href;
-    anchor.download = buildExportFileName(snapshot.file?.name, scope);
+    anchor.download = buildExportFileName(activeSnapshot.file?.name, scope);
     anchor.click();
     URL.revokeObjectURL(href);
   };
 
-  const canPause = snapshot.status === 'reading' || snapshot.status === 'analyzing';
-  const canResume = snapshot.status === 'paused';
-  const canCancel = snapshot.status === 'reading' || snapshot.status === 'analyzing' || snapshot.status === 'paused';
-  const canReset = snapshot.file !== null || snapshot.status !== 'idle';
-  const canRestart = snapshot.file !== null;
-  const canExport = filteredRows.length > 0 && snapshot.headers.length > 0;
+  const isRemoteMode = remoteSnapshot !== null;
+  const canPause = !isRemoteMode && (activeSnapshot.status === 'reading' || activeSnapshot.status === 'analyzing');
+  const canResume = !isRemoteMode && activeSnapshot.status === 'paused';
+  const canCancel =
+    isRemoteMode
+      ? Boolean(remoteJobId) && ['queued', 'reading'].includes(remoteJobQuery.data?.status ?? '')
+      : activeSnapshot.status === 'reading' || activeSnapshot.status === 'analyzing' || activeSnapshot.status === 'paused';
+  const canReset = activeSnapshot.file !== null || activeSnapshot.status !== 'idle';
+  const canRestart = Boolean(isRemoteMode ? activeSnapshot.file?.path : activeSnapshot.file);
+  const canExport = filteredRows.length > 0 && activeSnapshot.headers.length > 0;
+
+  const handleCancel = async () => {
+    if (isRemoteMode && remoteJobId) {
+      try {
+        await apiClient.post(`/csv-explorer/jobs/${remoteJobId}/cancel`);
+        await remoteJobQuery.refetch();
+      } catch (error) {
+        console.error(error);
+        window.alert('Impossible d annuler le job serveur.');
+      }
+      return;
+    }
+
+    cancel();
+  };
+
+  const handleReset = async () => {
+    if (isRemoteMode) {
+      if (remoteJobId && ['queued', 'reading'].includes(remoteJobQuery.data?.status ?? '')) {
+        try {
+          await apiClient.post(`/csv-explorer/jobs/${remoteJobId}/cancel`);
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      setRemoteJobId(null);
+      return;
+    }
+
+    reset();
+  };
+
+  const handleRestart = async () => {
+    if (isRemoteMode && activeSnapshot.file?.path) {
+      try {
+        const response = await apiClient.post('/csv-explorer/jobs', {
+          path: activeSnapshot.file.path,
+          delimiter: config.delimiter,
+          encoding: config.encoding,
+        });
+
+        const job = response.data.data;
+        setRemoteJobId(job.job_id as string);
+      } catch (error) {
+        console.error(error);
+        window.alert('Impossible de relancer la lecture serveur.');
+      }
+      return;
+    }
+
+    restart();
+  };
 
   return (
     <div className="csv-page">
@@ -156,21 +230,21 @@ export default function CsvExplorerPage() {
       </section>
 
       <CsvExplorerToolbar
-        file={snapshot.file}
-        status={snapshot.status}
-        delimiter={snapshot.delimiter}
+        file={activeSnapshot.file}
+        status={activeSnapshot.status}
+        delimiter={activeSnapshot.delimiter}
         selectedDelimiter={config.delimiter}
         selectedEncoding={config.encoding}
-        progress={snapshot.progress}
-        bytesProcessed={snapshot.bytesProcessed}
-        totalRowsRead={snapshot.totalRowsRead}
+        progress={activeSnapshot.progress}
+        bytesProcessed={activeSnapshot.bytesProcessed}
+        totalRowsRead={activeSnapshot.totalRowsRead}
         onDelimiterChange={setDelimiter}
         onEncodingChange={setEncoding}
         onPause={pause}
         onResume={resume}
-        onCancel={cancel}
-        onReset={reset}
-        onRestart={restart}
+        onCancel={handleCancel}
+        onReset={handleReset}
+        onRestart={handleRestart}
         onExport={handleExport}
         canPause={canPause}
         canResume={canResume}
@@ -180,10 +254,10 @@ export default function CsvExplorerPage() {
         canExport={canExport}
       />
 
-      <CsvExplorerStats snapshot={snapshot} scope={scope} />
+      <CsvExplorerStats snapshot={activeSnapshot} scope={scope} />
 
       <CsvFiltersBar
-        headers={snapshot.headers}
+        headers={activeSnapshot.headers}
         scope={scope}
         search={search}
         columnFilter={columnFilter}
@@ -199,10 +273,10 @@ export default function CsvExplorerPage() {
       />
 
       <CsvVirtualTable
-        headers={snapshot.headers}
+        headers={activeSnapshot.headers}
         rows={filteredRows}
         emptyMessage={
-          snapshot.file
+          activeSnapshot.file
             ? 'Aucune ligne disponible dans la vue courante. Ajuste les filtres, le scope ou le delimitateur.'
             : 'Charge un fichier CSV pour afficher l apercu.'
         }

@@ -116,6 +116,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::prefix('csv-explorer')->group(function (): void {
         Route::get('files', [CsvExplorerController::class, 'index']);
         Route::get('stream', [CsvExplorerController::class, 'stream']);
+        Route::post('jobs', [CsvExplorerController::class, 'startJob']);
+        Route::get('jobs/{jobId}', [CsvExplorerController::class, 'showJob']);
+        Route::post('jobs/{jobId}/cancel', [CsvExplorerController::class, 'cancelJob']);
     });
 
     Route::prefix('gaulois')->group(function (): void {
