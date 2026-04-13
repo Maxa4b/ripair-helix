@@ -1,8 +1,14 @@
 /// <reference lib="webworker" />
 
-import Papa, { type ParseError, type ParseMeta, type Parser } from 'papaparse';
+import Papa, {
+  type ParseError,
+  type ParseMeta,
+  type ParseRemoteConfig,
+  type Parser,
+} from 'papaparse';
 import type {
   CsvExplorerConfig,
+  CsvFileInfo,
   CsvParserIssue,
   CsvRow,
   CsvWorkerCommand,
@@ -23,8 +29,31 @@ ctx.onmessage = (event: MessageEvent<CsvWorkerCommand>) => {
         activeParser.abort();
         activeParser = null;
       }
+
       activeSessionId = message.sessionId;
-      startParsing(message.sessionId, message.payload.file, message.payload.config);
+
+      if (message.payload.source.kind === 'local') {
+        startSourceParsing(
+          message.sessionId,
+          message.payload.source.file,
+          {
+            name: message.payload.source.file.name,
+            size: message.payload.source.file.size,
+            type: message.payload.source.file.type,
+            lastModified: message.payload.source.file.lastModified,
+            source: 'local',
+          },
+          message.payload.config,
+        );
+      } else {
+        startSourceParsing(
+          message.sessionId,
+          message.payload.source.url,
+          message.payload.source.fileInfo,
+          message.payload.config,
+          message.payload.source.requestHeaders,
+        );
+      }
       break;
     case 'pause':
       if (message.sessionId === activeSessionId && activeParser) {
@@ -60,146 +89,171 @@ ctx.onmessage = (event: MessageEvent<CsvWorkerCommand>) => {
   }
 };
 
-function startParsing(sessionId: number, file: File, config: CsvExplorerConfig) {
+function startSourceParsing(
+  sessionId: number,
+  source: File | string,
+  fileInfo: CsvFileInfo,
+  config: CsvExplorerConfig,
+  requestHeaders?: Record<string, string>,
+) {
   let headers: string[] | null = null;
   let totalRowsRead = 0;
   let invalidRowCount = 0;
   let delimiter: string | null = config.delimiter === 'auto' ? null : config.delimiter;
 
+  const handleChunk = (results: { data: string[][]; errors: ParseError[]; meta: ParseMeta }, parser: Parser) => {
+    if (sessionId !== activeSessionId) {
+      parser.abort();
+      return;
+    }
+
+    activeParser = parser;
+    delimiter = results.meta.delimiter || delimiter;
+
+    const issues = normalizeIssues(results.errors);
+    invalidRowCount += results.errors.length;
+
+    const rawRows = Array.isArray(results.data) ? results.data : [];
+    const chunkRows: CsvRow[] = [];
+    let chunkHeaders: string[] | undefined;
+
+    if (!headers) {
+      const headerIndex = rawRows.findIndex((row) => hasAnyCell(row));
+
+      if (headerIndex === -1) {
+        postChunkMessage(
+          sessionId,
+          [],
+          undefined,
+          delimiter,
+          totalRowsRead,
+          results.meta,
+          fileInfo.size,
+          invalidRowCount,
+          issues,
+        );
+        return;
+      }
+
+      headers = sanitizeHeaders(rawRows[headerIndex]);
+      chunkHeaders = headers;
+      const normalized = normalizeRows(rawRows.slice(headerIndex + 1), headers, totalRowsRead + 1);
+      totalRowsRead += normalized.rows.length;
+      invalidRowCount += normalized.issues.length;
+      chunkRows.push(...normalized.rows);
+      issues.push(...normalized.issues);
+    } else {
+      const normalized = normalizeRows(rawRows, headers, totalRowsRead + 1);
+      totalRowsRead += normalized.rows.length;
+      invalidRowCount += normalized.issues.length;
+      chunkRows.push(...normalized.rows);
+      issues.push(...normalized.issues);
+    }
+
+    postChunkMessage(
+      sessionId,
+      chunkRows,
+      chunkHeaders,
+      delimiter,
+      totalRowsRead,
+      results.meta,
+      fileInfo.size,
+      invalidRowCount,
+      issues,
+    );
+  };
+
+  const handleComplete = () => {
+    if (sessionId !== activeSessionId) {
+      return;
+    }
+
+    activeParser = null;
+
+    if (!headers) {
+      postMessageSafe({
+        type: 'error',
+        sessionId,
+        message: 'Le fichier est vide ou ne contient aucune ligne de colonnes exploitable.',
+        issues: [
+          {
+            id: `empty-${sessionId}`,
+            level: 'error',
+            code: 'empty_file',
+            message: 'Aucun header detecte dans le fichier.',
+          },
+        ],
+      });
+      return;
+    }
+
+    postMessageSafe({
+      type: 'completed',
+      sessionId,
+      delimiter,
+      totalRowsRead,
+      bytesProcessed: fileInfo.size,
+      invalidRowCount,
+      issues: [],
+    });
+  };
+
+  const handleError = (error: Error) => {
+    if (sessionId !== activeSessionId) {
+      return;
+    }
+
+    activeParser = null;
+
+    postMessageSafe({
+      type: 'error',
+      sessionId,
+      message: error.message || 'Erreur inattendue pendant la lecture du CSV.',
+      issues: [
+        {
+          id: `fatal-${sessionId}`,
+          level: 'error',
+          code: 'fatal_parse_error',
+          message: error.message || 'Erreur inattendue pendant la lecture du CSV.',
+        },
+      ],
+    });
+  };
+
   postMessageSafe({
     type: 'started',
     sessionId,
-    file: {
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      lastModified: file.lastModified,
-    },
+    file: fileInfo,
   });
 
-  Papa.parse<string[]>(file, {
+  if (typeof source === 'string') {
+    const remoteConfig: ParseRemoteConfig<string[]> = {
+      delimiter: config.delimiter === 'auto' ? '' : config.delimiter,
+      dynamicTyping: false,
+      worker: false,
+      download: true,
+      downloadRequestHeaders: requestHeaders,
+      skipEmptyLines: 'greedy',
+      chunkSize: config.chunkSize,
+      chunk: handleChunk,
+      complete: handleComplete,
+      error: handleError,
+    };
+
+    Papa.parse<string[]>(source, remoteConfig);
+    return;
+  }
+
+  Papa.parse<string[]>(source, {
     delimiter: config.delimiter === 'auto' ? '' : config.delimiter,
     dynamicTyping: false,
     worker: false,
     skipEmptyLines: 'greedy',
     encoding: config.encoding,
     chunkSize: config.chunkSize,
-    chunk(results, parser) {
-      if (sessionId !== activeSessionId) {
-        parser.abort();
-        return;
-      }
-
-      activeParser = parser;
-      delimiter = results.meta.delimiter || delimiter;
-
-      const issues = normalizeIssues(results.errors);
-      invalidRowCount += results.errors.length;
-
-      const rawRows = Array.isArray(results.data) ? results.data : [];
-      const chunkRows: CsvRow[] = [];
-      let chunkHeaders: string[] | undefined;
-
-      if (!headers) {
-        const headerIndex = rawRows.findIndex((row) => hasAnyCell(row));
-
-        if (headerIndex === -1) {
-          postChunkMessage(
-            sessionId,
-            [],
-            undefined,
-            delimiter,
-            totalRowsRead,
-            results.meta,
-            file.size,
-            invalidRowCount,
-            issues,
-          );
-          return;
-        }
-
-        headers = sanitizeHeaders(rawRows[headerIndex]);
-        chunkHeaders = headers;
-        const normalized = normalizeRows(rawRows.slice(headerIndex + 1), headers, totalRowsRead + 1);
-        totalRowsRead += normalized.rows.length;
-        invalidRowCount += normalized.issues.length;
-        chunkRows.push(...normalized.rows);
-        issues.push(...normalized.issues);
-      } else {
-        const normalized = normalizeRows(rawRows, headers, totalRowsRead + 1);
-        totalRowsRead += normalized.rows.length;
-        invalidRowCount += normalized.issues.length;
-        chunkRows.push(...normalized.rows);
-        issues.push(...normalized.issues);
-      }
-
-      postChunkMessage(
-        sessionId,
-        chunkRows,
-        chunkHeaders,
-        delimiter,
-        totalRowsRead,
-        results.meta,
-        file.size,
-        invalidRowCount,
-        issues,
-      );
-    },
-    complete() {
-      if (sessionId !== activeSessionId) {
-        return;
-      }
-
-      activeParser = null;
-
-      if (!headers) {
-        postMessageSafe({
-          type: 'error',
-          sessionId,
-          message: 'Le fichier est vide ou ne contient aucune ligne de colonnes exploitable.',
-          issues: [
-            {
-              id: `empty-${sessionId}`,
-              level: 'error',
-              code: 'empty_file',
-              message: 'Aucun header détecté dans le fichier.',
-            },
-          ],
-        });
-        return;
-      }
-
-      postMessageSafe({
-        type: 'completed',
-        sessionId,
-        delimiter,
-        totalRowsRead,
-        bytesProcessed: file.size,
-        invalidRowCount,
-        issues: [],
-      });
-    },
-    error(error) {
-      if (sessionId !== activeSessionId) {
-        return;
-      }
-
-      activeParser = null;
-
-      postMessageSafe({
-        type: 'error',
-        sessionId,
-        message: error.message || 'Erreur inattendue pendant la lecture du CSV.',
-        issues: [
-          {
-            id: `fatal-${sessionId}`,
-            level: 'error',
-            code: 'fatal_parse_error',
-            message: error.message || 'Erreur inattendue pendant la lecture du CSV.',
-          },
-        ],
-      });
-    },
+    chunk: handleChunk,
+    complete: handleComplete,
+    error: handleError,
   });
 }
 
@@ -268,8 +322,8 @@ function normalizeRows(
         row: rowNumber + 1,
         message:
           values.length > headers.length
-            ? `La ligne ${rowNumber + 1} contient ${values.length} colonnes pour ${headers.length} headers. Les colonnes en trop sont tronquées.`
-            : `La ligne ${rowNumber + 1} contient ${values.length} colonnes pour ${headers.length} headers. Les cellules manquantes sont complétées à vide.`,
+            ? `La ligne ${rowNumber + 1} contient ${values.length} colonnes pour ${headers.length} headers. Les colonnes en trop sont tronquees.`
+            : `La ligne ${rowNumber + 1} contient ${values.length} colonnes pour ${headers.length} headers. Les cellules manquantes sont completees a vide.`,
       });
     }
 
@@ -290,7 +344,7 @@ function normalizeRows(
       id: `empty-chunk-${nextRowNumber}`,
       level: 'warning',
       code: 'empty_chunk',
-      message: 'Un bloc du fichier ne contenait aucune ligne de données exploitable.',
+      message: 'Un bloc du fichier ne contenait aucune ligne de donnees exploitable.',
     });
   }
 

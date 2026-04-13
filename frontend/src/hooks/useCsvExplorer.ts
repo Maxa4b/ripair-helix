@@ -11,6 +11,7 @@ import type {
   CsvDelimiterOption,
   CsvEncoding,
   CsvExplorerConfig,
+  CsvFileInfo,
   CsvExplorerSnapshot,
   CsvWorkerEvent,
 } from '../features/csv-explorer/types';
@@ -23,6 +24,11 @@ export function useCsvExplorer() {
   const flushTimerRef = useRef<number | null>(null);
   const pendingEventsRef = useRef<CsvWorkerEvent[]>([]);
   const activeFileRef = useRef<File | null>(null);
+  const lastRemotePayloadRef = useRef<{
+    url: string;
+    fileInfo: CsvFileInfo;
+    requestHeaders?: Record<string, string>;
+  } | null>(null);
 
   const [config, setConfig] = useState<CsvExplorerConfig>(DEFAULT_CSV_EXPLORER_CONFIG);
   const [snapshot, setSnapshot] = useState<CsvExplorerSnapshot>(createInitialCsvSnapshot);
@@ -217,6 +223,7 @@ export function useCsvExplorer() {
     }
 
     activeFileRef.current = file;
+    lastRemotePayloadRef.current = null;
     pendingEventsRef.current = [];
     sessionIdRef.current += 1;
 
@@ -224,7 +231,47 @@ export function useCsvExplorer() {
       type: 'start',
       sessionId: sessionIdRef.current,
       payload: {
-        file,
+        source: {
+          kind: 'local',
+          file,
+        },
+        config,
+      },
+    });
+  };
+
+  const startRemoteParsing = (payload: {
+    url: string;
+    fileInfo: CsvFileInfo;
+    requestHeaders?: Record<string, string>;
+  }) => {
+    const worker = workerRef.current;
+    if (!worker) {
+      return;
+    }
+
+    if (sessionIdRef.current > 0) {
+      worker.postMessage({
+        type: 'abort',
+        sessionId: sessionIdRef.current,
+      });
+    }
+
+    activeFileRef.current = null;
+    lastRemotePayloadRef.current = payload;
+    pendingEventsRef.current = [];
+    sessionIdRef.current += 1;
+
+    worker.postMessage({
+      type: 'start',
+      sessionId: sessionIdRef.current,
+      payload: {
+        source: {
+          kind: 'remote',
+          url: payload.url,
+          fileInfo: payload.fileInfo,
+          requestHeaders: payload.requestHeaders,
+        },
         config,
       },
     });
@@ -274,22 +321,27 @@ export function useCsvExplorer() {
 
     sessionIdRef.current += 1;
     activeFileRef.current = null;
+    lastRemotePayloadRef.current = null;
     pendingEventsRef.current = [];
     setSnapshot(createInitialCsvSnapshot());
   };
 
   const restart = () => {
-    if (!activeFileRef.current) {
+    if (activeFileRef.current) {
+      startParsing(activeFileRef.current);
       return;
     }
 
-    startParsing(activeFileRef.current);
+    if (lastRemotePayloadRef.current) {
+      startRemoteParsing(lastRemotePayloadRef.current);
+    }
   };
 
   return {
     config,
     snapshot,
     openFile: startParsing,
+    openRemoteFile: startRemoteParsing,
     pause,
     resume,
     cancel,

@@ -1,20 +1,21 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 
 type CsvFilePickerProps = {
   disabled?: boolean;
   currentFileName?: string | null;
-  onFileSelected: (file: File) => void;
+  onOpenRemoteBrowser: () => void;
+  onLocalFileSelected: (file: File) => void;
 };
 
 export default function CsvFilePicker({
   disabled = false,
   currentFileName,
-  onFileSelected,
+  onOpenRemoteBrowser,
+  onLocalFileSelected,
 }: CsvFilePickerProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
 
-  const openPicker = () => {
+  const openLocalPicker = () => {
     if (disabled) {
       return;
     }
@@ -28,11 +29,11 @@ export default function CsvFilePicker({
       return;
     }
 
-    onFileSelected(file);
+    onLocalFileSelected(file);
   };
 
   return (
-    <section className={`csv-picker${isDragging ? ' csv-picker--dragging' : ''}`}>
+    <section className="csv-picker">
       <input
         ref={inputRef}
         type="file"
@@ -41,51 +42,40 @@ export default function CsvFilePicker({
         onChange={(event) => handleFiles(event.target.files)}
       />
 
-      <div
-        className="csv-picker__dropzone"
-        onDragEnter={(event) => {
-          event.preventDefault();
-          if (!disabled) {
-            setIsDragging(true);
-          }
-        }}
-        onDragLeave={(event) => {
-          event.preventDefault();
-          if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
-            return;
-          }
-          setIsDragging(false);
-        }}
-        onDragOver={(event) => {
-          event.preventDefault();
-        }}
-        onDrop={(event) => {
-          event.preventDefault();
-          setIsDragging(false);
-          if (disabled) {
-            return;
-          }
-          handleFiles(event.dataTransfer.files);
-        }}
-      >
+      <div className="csv-picker__dropzone">
         <div className="csv-picker__content">
           <div>
             <p className="csv-picker__eyebrow">CSV Explorer</p>
-            <h1 className="csv-picker__title">Explorer un CSV local massif sans charger tout le fichier</h1>
+            <h1 className="csv-picker__title">Explorer un CSV massif du VPS ou de ton poste sans saturer l UI</h1>
             <p className="csv-picker__subtitle">
-              Selectionne ou depose un fichier local. Le parsing se fait par chunks dans un worker, avec affichage
-              virtualise et buffer memoire borne.
+              Le mode principal ouvre maintenant un navigateur de fichiers cote VPS via Helix. Le fallback local reste
+              disponible si besoin.
             </p>
           </div>
 
           <div className="csv-picker__actions">
-            <button type="button" className="csv-button csv-button--primary" onClick={openPicker} disabled={disabled}>
-              Ouvrir un CSV
-            </button>
+            <div className="csv-picker__button-row">
+              <button
+                type="button"
+                className="csv-button csv-button--primary"
+                onClick={onOpenRemoteBrowser}
+                disabled={disabled}
+              >
+                Ouvrir depuis le VPS
+              </button>
+              <button
+                type="button"
+                className="csv-button csv-button--ghost"
+                onClick={openLocalPicker}
+                disabled={disabled}
+              >
+                Fichier local
+              </button>
+            </div>
             <p className="csv-picker__hint">
               {currentFileName
                 ? `Fichier courant : ${currentFileName}`
-                : 'Formats attendus : .csv, .tsv ou texte delimite'}
+                : 'Selection prioritaire : fichiers internes du serveur Helix'}
             </p>
           </div>
         </div>

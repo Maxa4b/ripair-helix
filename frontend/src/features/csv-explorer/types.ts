@@ -28,6 +28,8 @@ export interface CsvFileInfo {
   size: number;
   type: string;
   lastModified: number;
+  source: 'local' | 'remote';
+  path?: string;
 }
 
 export interface CsvParserIssue {
@@ -65,8 +67,20 @@ export interface CsvExplorerSnapshot {
   completedAt: number | null;
 }
 
-export interface CsvWorkerStartPayload {
+export type CsvWorkerLocalSource = {
+  kind: 'local';
   file: File;
+};
+
+export type CsvWorkerRemoteSource = {
+  kind: 'remote';
+  url: string;
+  fileInfo: CsvFileInfo;
+  requestHeaders?: Record<string, string>;
+};
+
+export interface CsvWorkerStartPayload {
+  source: CsvWorkerLocalSource | CsvWorkerRemoteSource;
   config: CsvExplorerConfig;
 }
 
@@ -138,4 +152,23 @@ export type CsvWorkerEvent =
 export interface CsvSortState {
   column: string | null;
   direction: CsvSortDirection;
+}
+
+export interface CsvRemoteEntry {
+  type: 'directory' | 'file';
+  name: string;
+  path: string;
+  size: number | null;
+  modified_at: string;
+  extension: string | null;
+}
+
+export interface CsvRemoteListing {
+  root: {
+    label: string;
+    path: string;
+  };
+  current_path: string;
+  parent_path: string | null;
+  entries: CsvRemoteEntry[];
 }

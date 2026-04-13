@@ -6,6 +6,7 @@ use App\Http\Controllers\AppointmentNoteController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AvailabilityBlockController;
 use App\Http\Controllers\CustomerReviewController;
+use App\Http\Controllers\CsvExplorerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GauloisController;
 use App\Http\Controllers\HelixUserController;
@@ -111,6 +112,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     Route::get('reviews', [CustomerReviewController::class, 'index']);
     Route::patch('reviews/{review}', [CustomerReviewController::class, 'update']);
+
+    Route::prefix('csv-explorer')->group(function (): void {
+        Route::get('files', [CsvExplorerController::class, 'index']);
+        Route::get('stream', [CsvExplorerController::class, 'stream']);
+    });
 
     Route::prefix('gaulois')->group(function (): void {
         Route::get('meta', [GauloisController::class, 'meta']);

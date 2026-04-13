@@ -90,7 +90,11 @@ export default function CsvExplorerToolbar({
         <div>
           <p className="csv-section-label">Fichier</p>
           <strong>{file?.name ?? 'Aucun fichier'}</strong>
-          <p className="csv-toolbar__meta-line">{file ? formatBytes(file.size) : 'Pret a charger'}</p>
+          <p className="csv-toolbar__meta-line">
+            {file
+              ? `${formatBytes(file.size)} • ${file.source === 'remote' ? `VPS${file.path ? ` • ${file.path}` : ''}` : 'Local'}`
+              : 'Pret a charger'}
+          </p>
         </div>
 
         <div>
