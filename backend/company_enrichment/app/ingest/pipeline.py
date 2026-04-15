@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import logging
 from pathlib import Path
 
@@ -11,14 +12,162 @@ from app.utils.logging_utils import log_phase
 
 LOGGER = logging.getLogger(__name__)
 
+SOURCE_COLUMN_ALIASES: dict[str, list[str]] = {
+    "siren": ["siren"],
+    "siret": ["siret"],
+    "raison_sociale": [
+        "denominationUniteLegale",
+        "denominationunitelegale",
+        "nomUniteLegale",
+        "nomunitelegale",
+    ],
+    "enseigne": [
+        "enseigne1Etablissement",
+        "enseigne1etablissement",
+        "nomCommercialEtablissement",
+        "nomcommercialetablissement",
+        "sigleUniteLegale",
+        "sigleunitelegale",
+    ],
+    "forme_juridique": [
+        "categorieJuridiqueUniteLegale",
+        "categoriejuridiqueunitelegale",
+    ],
+    "naf": [
+        "activitePrincipaleEtablissement",
+        "activiteprincipaleetablissement",
+        "activitePrincipaleUniteLegale",
+        "activiteprincipaleunitelegale",
+    ],
+    "adresse": [
+        "adresseEtablissement",
+        "adresseetablissement",
+    ],
+    "code_postal": [
+        "codePostalEtablissement",
+        "codepostaletablissement",
+    ],
+    "ville": [
+        "libelleCommuneEtablissement",
+        "libellecommuneetablissement",
+        "communeEtablissement",
+        "communeetablissement",
+    ],
+    "region": [
+        "libelleRegionEtablissement",
+        "libelleregionetablissement",
+        "region",
+        "codeRegionEtablissement",
+        "coderegionetablissement",
+    ],
+    "pays": [
+        "libellePaysEtrangerEtablissement",
+        "libellepaysetrangeretablissement",
+        "paysEtrangerEtablissement",
+        "paysetrangeretablissement",
+    ],
+    "est_siege": [
+        "etablissementSiege",
+        "etablissementsiege",
+    ],
+    "statut_administratif": [
+        "etatAdministratifEtablissement",
+        "etatadministratifetablissement",
+    ],
+    "tranche_effectif": [
+        "trancheEffectifsEtablissement",
+        "trancheeffectifsetablissement",
+        "trancheEffectifsUniteLegale",
+        "trancheeffectifsunitelegale",
+    ],
+    "website": [
+        "website",
+        "siteWeb",
+        "siteweb",
+        "url",
+    ],
+}
+
+ADDRESS_COMPONENT_ALIASES = [
+    ["numeroVoieEtablissement", "numerovoieetablissement"],
+    ["indiceRepetitionEtablissement", "indicerepetitionetablissement"],
+    ["typeVoieEtablissement", "typevoieetablissement"],
+    ["libelleVoieEtablissement", "libellevoieetablissement"],
+    ["complementAdresseEtablissement", "complementadresseetablissement"],
+    ["distributionSpecialeEtablissement", "distributionspecialeetablissement"],
+    ["distributionSpeciale2Etablissement", "distributionspeciale2etablissement"],
+]
+
 
 def _sql_escape(value: str) -> str:
     return value.replace("'", "''")
 
 
+def _normalize_column_key(value: str) -> str:
+    return "".join(character for character in value.lower() if character.isalnum())
+
+
+def _read_source_headers(input_path: Path, config: PipelineConfig) -> list[str]:
+    if input_path.suffix.lower() == ".parquet" or config.source.format.lower() == "parquet":
+        frame = duckdb.connect().execute(f"DESCRIBE SELECT * FROM read_parquet('{input_path.as_posix()}')").fetchall()
+        return [str(row[0]) for row in frame]
+
+    delimiter = config.source.csv.delimiter
+    with input_path.open("r", encoding=config.source.csv.encoding, newline="") as handle:
+        sample = handle.read(64_000)
+        handle.seek(0)
+
+        if delimiter == "auto":
+            try:
+                dialect = csv.Sniffer().sniff(sample, delimiters=[",", ";", "\t", "|"])
+                delimiter = dialect.delimiter
+            except csv.Error:
+                delimiter = ","
+
+        reader = csv.reader(handle, delimiter=delimiter, quotechar=config.source.csv.quotechar)
+        return next(reader, [])
+
+
+def _resolved_mapping(input_path: Path, config: PipelineConfig) -> dict[str, str]:
+    mapping = dict(config.source.source_columns)
+    source_headers = _read_source_headers(input_path, config)
+    normalized_headers = {_normalize_column_key(column): column for column in source_headers}
+
+    resolved: dict[str, str] = {}
+    all_targets = set(mapping.keys()) | set(SOURCE_COLUMN_ALIASES.keys())
+    for target in all_targets:
+        configured_name = mapping.get(target)
+        candidates = [candidate for candidate in [configured_name, *SOURCE_COLUMN_ALIASES.get(target, [])] if candidate]
+        for candidate in candidates:
+            matched = normalized_headers.get(_normalize_column_key(candidate))
+            if matched:
+                resolved[target] = matched
+                break
+
+    return resolved
+
+
 def _mapped_expression(mapping: dict[str, str], target: str, default_sql: str = "NULL") -> str:
     source_column = mapping.get(target)
     return f'"{source_column}" AS "{target}"' if source_column else f'{default_sql} AS "{target}"'
+
+
+def _resolve_address_expression(mapping: dict[str, str], source_headers: list[str]) -> str:
+    address_column = mapping.get("adresse")
+    if address_column:
+        return f'NULLIF(TRIM("{address_column}"), \'\')'
+
+    parts: list[str] = []
+    normalized_headers = {_normalize_column_key(value): value for value in source_headers}
+    for aliases in ADDRESS_COMPONENT_ALIASES:
+        matched = next((normalized_headers.get(_normalize_column_key(alias)) for alias in aliases if normalized_headers.get(_normalize_column_key(alias))), None)
+        if matched:
+            parts.append(f'NULLIF(TRIM("{matched}"), \'\')')
+
+    if not parts:
+        return "NULL"
+
+    return "NULLIF(TRIM(CONCAT_WS(' ', " + ", ".join(parts) + ")), '')"
 
 
 def _startswith_any(column_sql: str, prefixes: list[str]) -> str:
@@ -60,7 +209,8 @@ def _build_source_relation(input_path: Path, config: PipelineConfig) -> str:
 
 
 def build_ingest_sql(input_path: Path, config: PipelineConfig) -> str:
-    mapping = config.source.source_columns
+    mapping = _resolved_mapping(input_path, config)
+    source_headers = _read_source_headers(input_path, config)
     filters = config.filters
     weights = config.priority_weights
     relation = _build_source_relation(input_path, config)
@@ -124,7 +274,7 @@ def build_ingest_sql(input_path: Path, config: PipelineConfig) -> str:
         _mapped_expression(mapping, "enseigne"),
         _mapped_expression(mapping, "forme_juridique"),
         _mapped_expression(mapping, "naf"),
-        _mapped_expression(mapping, "adresse"),
+        f'{_resolve_address_expression(mapping, source_headers)} AS "adresse"',
         _mapped_expression(mapping, "code_postal"),
         _mapped_expression(mapping, "ville"),
         _mapped_expression(mapping, "pays", "''"),

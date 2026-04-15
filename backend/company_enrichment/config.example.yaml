@@ -3,18 +3,18 @@ source:
   source_columns:
     siren: siren
     siret: siret
-    raison_sociale: denominationunitelegale
-    enseigne: enseigne1etablissement
-    forme_juridique: categoriejuridiqueunitelegale
-    naf: activiteprincipaleetablissement
-    adresse: adresseetablissement
-    code_postal: codepostaletablissement
-    ville: libellecommuneetablissement
+    raison_sociale: denominationUniteLegale
+    enseigne: enseigne1Etablissement
+    forme_juridique: categorieJuridiqueUniteLegale
+    naf: activitePrincipaleEtablissement
+    adresse: adresseEtablissement
+    code_postal: codePostalEtablissement
+    ville: libelleCommuneEtablissement
     region: region
-    pays: paysetrangeretablissement
-    est_siege: etablissementsiege
-    statut_administratif: etatadministratifetablissement
-    tranche_effectif: trancheeffectifsetablissement
+    pays: libellePaysEtrangerEtablissement
+    est_siege: etablissementSiege
+    statut_administratif: etatAdministratifEtablissement
+    tranche_effectif: trancheEffectifsEtablissement
     source_row_id: source_row_id
     website: website
   csv:
