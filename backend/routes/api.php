@@ -6,6 +6,7 @@ use App\Http\Controllers\AppointmentNoteController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AvailabilityBlockController;
 use App\Http\Controllers\CustomerReviewController;
+use App\Http\Controllers\CompanyEnrichmentController;
 use App\Http\Controllers\CsvExplorerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GauloisController;
@@ -108,6 +109,14 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('import/companies', [ProspectingImportController::class, 'store']);
         Route::post('sync/excel', [ProspectingExcelSyncController::class, 'store']);
         Route::get('stats', ProspectingStatsController::class);
+        Route::prefix('enrichment')->group(function (): void {
+            Route::get('files', [CompanyEnrichmentController::class, 'files']);
+            Route::get('jobs', [CompanyEnrichmentController::class, 'index']);
+            Route::post('jobs', [CompanyEnrichmentController::class, 'store']);
+            Route::get('jobs/{jobId}', [CompanyEnrichmentController::class, 'show']);
+            Route::post('jobs/{jobId}/cancel', [CompanyEnrichmentController::class, 'cancel']);
+            Route::get('jobs/{jobId}/artifacts/{artifactKey}', [CompanyEnrichmentController::class, 'downloadArtifact']);
+        });
     });
 
     Route::get('reviews', [CustomerReviewController::class, 'index']);

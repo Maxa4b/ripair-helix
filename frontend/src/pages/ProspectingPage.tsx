@@ -1,5 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import ProspectingCompanyDrawer from '../components/prospecting/ProspectingCompanyDrawer';
+import ProspectingEnrichmentPanel from '../components/prospecting/ProspectingEnrichmentPanel';
 import ProspectingMap from '../components/prospecting/ProspectingMap';
 import ProspectingQuickCard from '../components/prospecting/ProspectingQuickCard';
 import { statusLabel } from '../components/prospecting/prospectingStatusMeta';
@@ -194,6 +195,8 @@ export default function ProspectingPage() {
           </button>
         </div>
       </section>
+
+      <ProspectingEnrichmentPanel />
 
       <div className="prospecting-layout">
         <aside className="prospecting-panel">

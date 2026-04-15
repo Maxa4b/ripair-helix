@@ -245,6 +245,172 @@
   box-shadow: 0 10px 30px rgba(36, 99, 235, 0.12);
 }
 
+.prospecting-enrichment {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  border-radius: 26px;
+  border: 1px solid var(--prospecting-panel-border);
+  background: var(--prospecting-panel);
+  box-shadow: var(--prospecting-shadow);
+}
+
+.prospecting-enrichment__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.prospecting-enrichment__eyebrow {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 800;
+}
+
+.prospecting-enrichment__summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.prospecting-enrichment__grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.prospecting-enrichment__value {
+  margin: 8px 0 0;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.prospecting-enrichment__phases {
+  display: grid;
+  gap: 8px;
+}
+
+.prospecting-enrichment__phase {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.prospecting-enrichment__artifacts {
+  display: grid;
+  gap: 8px;
+}
+
+.prospecting-enrichment__artifact {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.88);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.prospecting-enrichment__logs {
+  margin: 0;
+  min-height: 180px;
+  max-height: 320px;
+  overflow: auto;
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #0f172a;
+  color: #dbeafe;
+  padding: 16px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.prospecting-enrichment__error {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(217, 60, 60, 0.1);
+  border: 1px solid rgba(217, 60, 60, 0.16);
+  color: #a61b1b;
+}
+
+.prospecting-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(10px);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.prospecting-modal {
+  width: min(960px, 100%);
+  max-height: min(86vh, 920px);
+  overflow: hidden;
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.25);
+}
+
+.prospecting-modal__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.prospecting-file-browser {
+  display: grid;
+  gap: 10px;
+  max-height: 56vh;
+  overflow: auto;
+}
+
+.prospecting-file-browser__entry {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(248, 250, 252, 0.98);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.prospecting-file-browser__entry--directory {
+  background: rgba(239, 246, 255, 0.92);
+}
+
+.prospecting-file-browser__empty {
+  padding: 18px;
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.9);
+  color: #64748b;
+}
+
 .prospecting-quick-card {
   position: absolute;
   left: 18px;
@@ -349,6 +515,8 @@
 }
 
 @media (max-width: 1180px) {
+  .prospecting-enrichment__summary,
+  .prospecting-enrichment__grid,
   .prospecting-layout {
     grid-template-columns: 1fr;
   }

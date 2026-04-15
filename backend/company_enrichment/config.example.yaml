@@ -1,0 +1,150 @@
+source:
+  format: csv
+  source_columns:
+    siren: siren
+    siret: siret
+    raison_sociale: denominationunitelegale
+    enseigne: enseigne1etablissement
+    forme_juridique: categoriejuridiqueunitelegale
+    naf: activiteprincipaleetablissement
+    adresse: adresseetablissement
+    code_postal: codepostaletablissement
+    ville: libellecommuneetablissement
+    region: region
+    pays: paysetrangeretablissement
+    est_siege: etablissementsiege
+    statut_administratif: etatadministratifetablissement
+    tranche_effectif: trancheeffectifsetablissement
+    source_row_id: source_row_id
+    website: website
+  csv:
+    delimiter: ","
+    quotechar: "\""
+    encoding: utf-8
+    header: true
+    sample_size: 50000
+
+filters:
+  active_only: true
+  headquarters_only: false
+  include_naf_prefixes: ["95", "47.41", "62"]
+  exclude_naf_prefixes: []
+  include_legal_forms: []
+  exclude_legal_forms: ["1000"]
+  min_effectif: 1
+  countries: ["FR", ""]
+  departments: []
+  regions: []
+  cities: []
+  excluded_statuses: ["F", "C"]
+
+priority_weights:
+  naf_match: 30
+  effectif_match: 20
+  legal_form_match: 15
+  known_domain_hint: 10
+  individual_like_penalty: -40
+  closed_penalty: -50
+
+domain_resolution:
+  provider: column
+  website_column: website
+  seed_candidates_path:
+  batch_size: 100
+  concurrency: 10
+  timeout_seconds: 12
+  max_candidates_per_company: 5
+  allow_insecure_tls: false
+  status_thresholds:
+    verified: 70
+    likely: 45
+    uncertain: 20
+  validation_paths:
+    - /
+    - /contact
+    - /mentions-legales
+    - /nous-contacter
+
+crawl:
+  concurrency: 20
+  timeout_seconds: 10
+  retries: 2
+  max_pages_per_domain: 6
+  max_depth: 1
+  stop_after_high_confidence_email: true
+  allow_pdf: true
+  ignore_extensions: [".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".css", ".js", ".zip", ".mp4"]
+  user_agent: "HelixEnrichmentBot/0.1 (+https://helix.ripair.shop)"
+  priority_paths:
+    - /
+    - /contact
+    - /nous-contacter
+    - /mentions-legales
+    - /legal
+    - /about
+    - /a-propos
+    - /team
+    - /equipe
+    - /support
+    - /sav
+    - /atelier
+    - /devis
+    - /quote
+
+email_extraction:
+  enable_pattern_generation: true
+  enable_mx_check: true
+  blacklist_domains:
+    - cloudflare.com
+    - wordpress.org
+    - godaddy.com
+  blacklist_prefixes:
+    - noreply
+    - no-reply
+    - donotreply
+    - do-not-reply
+    - abuse
+    - privacy
+  generic_prefixes:
+    - contact
+    - commercial
+    - info
+    - bonjour
+    - hello
+    - support
+    - sav
+    - atelier
+    - devis
+    - sales
+
+scoring:
+  thresholds:
+    primary_export_min_score: 75
+    verified_min_score: 75
+    likely_min_score: 60
+  domain:
+    siren_exact: 35
+    address_and_name: 20
+    brand_and_location: 10
+    uncertain_penalty: -50
+  email_observed:
+    mailto_official: 35
+    contact_page_official: 30
+    legal_page_official: 25
+    footer_official: 15
+    pdf_official: 10
+    third_party_penalty: -25
+    pattern_generated_penalty: -40
+  business_usage:
+    generic_relevant: 15
+    named_with_role: 5
+    personal_penalty: -20
+    too_personal_penalty: -30
+
+storage:
+  sqlite_path: .state/enrichment.sqlite3
+  http_cache_path: .state/http_cache.sqlite3
+  output_failures_name: failures
+
+logging:
+  level: INFO
