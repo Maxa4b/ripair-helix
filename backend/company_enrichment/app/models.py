@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class DomainStatus(str, Enum):
@@ -45,6 +45,13 @@ class CompanyTarget(BaseModel):
     score_priorite_initial: int = 0
     source_row_id: str | None = None
     website: str | None = None
+
+    @field_validator("source_row_id", mode="before")
+    @classmethod
+    def normalize_source_row_id(cls, value: Any) -> str | None:
+        if value is None:
+            return None
+        return str(value)
 
 
 class DomainCandidate(BaseModel):
