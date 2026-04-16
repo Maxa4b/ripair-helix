@@ -23,17 +23,51 @@ def records_to_frame(records: Iterable[dict]) -> pl.DataFrame:
     for record in records:
         normalized.append(
             {
-                key: json.dumps(value, ensure_ascii=False)
-                if isinstance(value, (dict, list))
-                else value.value
-                if isinstance(value, Enum)
-                else value.isoformat()
-                if isinstance(value, datetime)
-                else value
+                key: _normalize_scalar(value)
                 for key, value in record.items()
             }
         )
-    return pl.DataFrame(normalized) if normalized else pl.DataFrame()
+
+    if not normalized:
+        return pl.DataFrame()
+
+    keys = {key for row in normalized for key in row.keys()}
+    scalar_types: dict[str, set[type]] = {key: set() for key in keys}
+    for row in normalized:
+        for key in keys:
+            value = row.get(key)
+            if value is None:
+                continue
+            scalar_types[key].add(type(value))
+
+    columns_to_string = {
+        key
+        for key, types in scalar_types.items()
+        if len(types) > 1
+    }
+
+    if columns_to_string:
+        normalized = [
+            {
+                key: None if row.get(key) is None else str(row.get(key))
+                if key in columns_to_string
+                else row.get(key)
+                for key in keys
+            }
+            for row in normalized
+        ]
+
+    return pl.DataFrame(normalized)
+
+
+def _normalize_scalar(value: object) -> object:
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, Enum):
+        return value.value
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return value
 
 
 def write_frame(frame: pl.DataFrame, path: str | Path) -> None:
