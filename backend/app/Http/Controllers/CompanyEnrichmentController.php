@@ -7,10 +7,12 @@ use App\Services\CompanyEnrichment\CompanyEnrichmentFilesystemService;
 use App\Services\CompanyEnrichment\CompanyEnrichmentJobStore;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\Process\Process;
+use Symfony\Component\Yaml\Yaml;
 
 class CompanyEnrichmentController extends Controller
 {
@@ -56,25 +58,32 @@ class CompanyEnrichmentController extends Controller
 
         $data = $request->validate([
             'input_path' => ['required', 'string', 'max:2048'],
+            'seed_input_path' => ['nullable', 'string', 'max:2048'],
             'mode' => ['nullable', 'string', 'in:run-all,ingest,resolve-domains,crawl,score-emails,export-final'],
         ]);
 
         try {
             $input = $this->filesystem->inputFile((string) $data['input_path']);
-            $configPath = $this->filesystem->defaultConfigPath();
+            $seedInput = isset($data['seed_input_path']) && is_string($data['seed_input_path']) && $data['seed_input_path'] !== ''
+                ? $this->filesystem->inputFile((string) $data['seed_input_path'])
+                : null;
         } catch (RuntimeException $exception) {
             abort(422, $exception->getMessage());
         }
 
         $jobId = (string) Str::uuid();
         $mode = (string) ($data['mode'] ?? 'run-all');
+        $outputDirectory = $this->filesystem->makeOutputDirectory($jobId);
+        $configPath = $this->materializeRuntimeConfig($outputDirectory, $seedInput['absolute_path'] ?? null);
         $job = $this->jobStore->create([
             'job_id' => $jobId,
             'mode' => $mode,
             'input_path' => (string) $data['input_path'],
             'input_absolute_path' => $input['absolute_path'],
+            'seed_input_path' => $seedInput['relative_path'] ?? null,
+            'seed_input_absolute_path' => $seedInput['absolute_path'] ?? null,
             'config_path' => $configPath,
-            'output_directory' => $this->filesystem->makeOutputDirectory($jobId),
+            'output_directory' => $outputDirectory,
             'log_path' => rtrim((string) config('company_enrichment.jobs_directory'), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $jobId . '.log',
             'snapshot' => [
                 'status' => 'queued',
@@ -94,6 +103,12 @@ class CompanyEnrichmentController extends Controller
                     'path' => $input['relative_path'],
                     'modifiedAt' => $input['modified_at'],
                 ],
+                'seedFile' => $seedInput ? [
+                    'name' => $seedInput['name'],
+                    'size' => $seedInput['size'],
+                    'path' => $seedInput['relative_path'],
+                    'modifiedAt' => $seedInput['modified_at'],
+                ] : null,
                 'actor' => [
                     'id' => $actor->id,
                     'name' => $actor->full_name,
@@ -181,6 +196,28 @@ class CompanyEnrichmentController extends Controller
             'startedAt' => null,
             'completedAt' => null,
         ], $selected);
+    }
+
+    private function materializeRuntimeConfig(string $outputDirectory, ?string $seedCandidatesPath): string
+    {
+        $configPath = $this->filesystem->defaultConfigPath();
+        $payload = Yaml::parseFile($configPath);
+
+        if (! is_array($payload)) {
+            throw new RuntimeException('Configuration YAML invalide pour company enrichment.');
+        }
+
+        if ($seedCandidatesPath) {
+            $payload['domain_resolution'] = is_array($payload['domain_resolution'] ?? null)
+                ? $payload['domain_resolution']
+                : [];
+            $payload['domain_resolution']['seed_candidates_path'] = $seedCandidatesPath;
+        }
+
+        $runtimeConfigPath = rtrim($outputDirectory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'runtime.config.yaml';
+        File::put($runtimeConfigPath, Yaml::dump($payload, 6, 2));
+
+        return $runtimeConfigPath;
     }
 
     private function launchRunnerProcess(string $jobId): void

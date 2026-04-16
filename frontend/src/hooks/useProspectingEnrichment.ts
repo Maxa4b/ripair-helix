@@ -53,6 +53,12 @@ export type EnrichmentJobSnapshot = {
     path: string;
     modifiedAt: string;
   };
+  seedFile?: {
+    name: string;
+    size: number;
+    path: string;
+    modifiedAt: string;
+  } | null;
   actor?: {
     id: number;
     name: string;
@@ -109,7 +115,7 @@ export function useStartProspectingEnrichmentJob() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: { input_path: string; mode?: 'run-all' }) => {
+    mutationFn: async (payload: { input_path: string; seed_input_path?: string | null; mode?: 'run-all' }) => {
       const response = await apiClient.post('/prospecting/enrichment/jobs', payload);
       return (response.data.data ?? response.data) as EnrichmentJob;
     },

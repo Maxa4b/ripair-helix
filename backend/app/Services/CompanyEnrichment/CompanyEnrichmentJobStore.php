@@ -127,7 +127,15 @@ class CompanyEnrichmentJobStore
         $snapshot['artifacts'] = $this->filesystem->listArtifacts((string) ($job['output_directory'] ?? ''));
         $job['snapshot'] = $snapshot;
 
-        unset($job['input_absolute_path'], $job['output_directory'], $job['log_path'], $job['runner_pid'], $job['process_pid']);
+        unset(
+            $job['input_absolute_path'],
+            $job['seed_input_absolute_path'],
+            $job['config_path'],
+            $job['output_directory'],
+            $job['log_path'],
+            $job['runner_pid'],
+            $job['process_pid']
+        );
 
         return $job;
     }

@@ -35,6 +35,7 @@ class CompanyEnrichmentApiTest extends TestCase
         File::ensureDirectoryExists($this->outputRoot);
 
         File::put($this->inputRoot . '/nested/sample.csv', "siren,name\n123456789,Acme\n");
+        File::put($this->inputRoot . '/nested/seed_domains.csv', "siren,source_url,source_type\n123456789,https://acme.example,seed_file\n");
 
         config()->set('company_enrichment.input_root', $this->inputRoot);
         config()->set('company_enrichment.jobs_directory', $this->jobsDirectory);
@@ -71,6 +72,32 @@ class CompanyEnrichmentApiTest extends TestCase
             ->assertJsonPath('data.snapshot.inputFile.name', 'sample.csv');
 
         $this->assertNotEmpty(File::files($this->jobsDirectory));
+    }
+
+    public function test_owner_can_create_company_enrichment_job_with_seed_file(): void
+    {
+        Sanctum::actingAs($this->createHelixUser('owner'));
+
+        $response = $this->postJson('/api/prospecting/enrichment/jobs', [
+            'input_path' => 'nested/sample.csv',
+            'seed_input_path' => 'nested/seed_domains.csv',
+            'mode' => 'run-all',
+        ]);
+
+        $response->assertStatus(202)
+            ->assertJsonPath('data.seed_input_path', 'nested/seed_domains.csv')
+            ->assertJsonPath('data.snapshot.seedFile.name', 'seed_domains.csv');
+
+        $jobJson = collect(File::files($this->jobsDirectory))
+            ->first(fn (\SplFileInfo $file) => str_ends_with($file->getFilename(), '.json'));
+
+        $this->assertNotNull($jobJson);
+        $payload = json_decode((string) File::get($jobJson->getPathname()), true);
+        $this->assertIsArray($payload);
+        $runtimeConfigPath = $payload['config_path'] ?? null;
+        $this->assertIsString($runtimeConfigPath);
+        $this->assertStringContainsString('seed_candidates_path', (string) File::get($runtimeConfigPath));
+        $this->assertStringContainsString('seed_domains.csv', (string) File::get($runtimeConfigPath));
     }
 
     private function createHelixUser(string $role): HelixUser

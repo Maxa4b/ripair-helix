@@ -50,8 +50,10 @@ function translateStatus(value: EnrichmentJob['status']) {
 export default function ProspectingEnrichmentPanel() {
   const jobsQuery = useProspectingEnrichmentJobs();
   const [browserOpen, setBrowserOpen] = useState(false);
+  const [browserTarget, setBrowserTarget] = useState<'input' | 'seed'>('input');
   const [browserPath, setBrowserPath] = useState('');
   const [selectedInputPath, setSelectedInputPath] = useState<string | null>(null);
+  const [selectedSeedPath, setSelectedSeedPath] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
   const filesQuery = useProspectingEnrichmentFiles(browserPath, browserOpen);
@@ -74,7 +76,11 @@ export default function ProspectingEnrichmentPanel() {
   const runningJob = useMemo(() => jobs.find((job) => job.status === 'queued' || job.status === 'running') ?? null, [jobs]);
 
   const handleSelectFile = (entry: EnrichmentRemoteEntry) => {
-    setSelectedInputPath(entry.path);
+    if (browserTarget === 'seed') {
+      setSelectedSeedPath(entry.path);
+    } else {
+      setSelectedInputPath(entry.path);
+    }
     setBrowserOpen(false);
   };
 
@@ -85,7 +91,11 @@ export default function ProspectingEnrichmentPanel() {
     }
 
     try {
-      const job = await startMutation.mutateAsync({ input_path: selectedInputPath, mode: 'run-all' });
+      const job = await startMutation.mutateAsync({
+        input_path: selectedInputPath,
+        seed_input_path: selectedSeedPath,
+        mode: 'run-all',
+      });
       setSelectedJobId(job.job_id);
     } catch (error) {
       console.error(error);
@@ -138,8 +148,25 @@ export default function ProspectingEnrichmentPanel() {
             </p>
           </div>
           <div className="prospecting-actions">
-            <button type="button" className="prospecting-button prospecting-button--ghost" onClick={() => setBrowserOpen(true)}>
+            <button
+              type="button"
+              className="prospecting-button prospecting-button--ghost"
+              onClick={() => {
+                setBrowserTarget('input');
+                setBrowserOpen(true);
+              }}
+            >
               Choisir la source VPS
+            </button>
+            <button
+              type="button"
+              className="prospecting-button prospecting-button--ghost"
+              onClick={() => {
+                setBrowserTarget('seed');
+                setBrowserOpen(true);
+              }}
+            >
+              Choisir un seed domaines
             </button>
             <button
               type="button"
@@ -164,6 +191,10 @@ export default function ProspectingEnrichmentPanel() {
           <article className="prospecting-stat">
             <p className="prospecting-stat__label">Source sélectionnée</p>
             <p className="prospecting-enrichment__value">{selectedInputPath ?? 'Aucun fichier choisi'}</p>
+          </article>
+          <article className="prospecting-stat">
+            <p className="prospecting-stat__label">Seed domaines</p>
+            <p className="prospecting-enrichment__value">{selectedSeedPath ?? 'Aucun seed'}</p>
           </article>
           <article className="prospecting-stat">
             <p className="prospecting-stat__label">Dernier statut</p>
@@ -223,6 +254,9 @@ export default function ProspectingEnrichmentPanel() {
               <p style={{ margin: 0, color: '#64748b' }}>
                 {selectedJob ? `Job ${selectedJob.job_id}` : 'Sélectionne un job pour voir ses sorties'}
               </p>
+              {selectedJob?.snapshot.seedFile ? (
+                <p style={{ margin: 0, color: '#64748b' }}>Seed: {selectedJob.snapshot.seedFile.path}</p>
+              ) : null}
             </div>
 
             {!selectedJob ? (
@@ -277,12 +311,16 @@ export default function ProspectingEnrichmentPanel() {
 
       <ProspectingFileBrowserDialog
         open={browserOpen}
-        title="Choisir le fichier source SIRENE"
-        description="Le pipeline lira ce fichier directement sur le VPS. Extensions autorisées: CSV, TSV, TXT, Parquet."
+        title={browserTarget === 'seed' ? 'Choisir le seed de domaines' : 'Choisir le fichier source SIRENE'}
+        description={
+          browserTarget === 'seed'
+            ? 'Seed facultatif contenant au moins siren + source_url/domain. Utilisé par resolve_domains comme provider prioritaire.'
+            : 'Le pipeline lira ce fichier directement sur le VPS. Extensions autorisées: CSV, TSV, TXT, Parquet.'
+        }
         listing={filesQuery.data}
         isLoading={filesQuery.isLoading}
         errorMessage={filesQuery.isError ? 'Impossible de charger les fichiers du VPS.' : null}
-        selectingPath={selectedInputPath}
+        selectingPath={browserTarget === 'seed' ? selectedSeedPath : selectedInputPath}
         onClose={() => setBrowserOpen(false)}
         onNavigate={setBrowserPath}
         onSelectFile={handleSelectFile}
