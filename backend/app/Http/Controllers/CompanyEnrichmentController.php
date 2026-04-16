@@ -12,7 +12,6 @@ use Illuminate\Support\Str;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\Process\Process;
-use Symfony\Component\Yaml\Yaml;
 
 class CompanyEnrichmentController extends Controller
 {
@@ -201,21 +200,35 @@ class CompanyEnrichmentController extends Controller
     private function materializeRuntimeConfig(string $outputDirectory, ?string $seedCandidatesPath): string
     {
         $configPath = $this->filesystem->defaultConfigPath();
-        $payload = Yaml::parseFile($configPath);
-
-        if (! is_array($payload)) {
-            throw new RuntimeException('Configuration YAML invalide pour company enrichment.');
+        if ($seedCandidatesPath === null || $seedCandidatesPath === '') {
+            return $configPath;
         }
 
-        if ($seedCandidatesPath) {
-            $payload['domain_resolution'] = is_array($payload['domain_resolution'] ?? null)
-                ? $payload['domain_resolution']
-                : [];
-            $payload['domain_resolution']['seed_candidates_path'] = $seedCandidatesPath;
+        $content = (string) File::get($configPath);
+        if ($content === '') {
+            throw new RuntimeException('Configuration YAML vide pour company enrichment.');
+        }
+
+        $escapedPath = "'" . str_replace("'", "''", $seedCandidatesPath) . "'";
+        $replacementCount = 0;
+        $updated = preg_replace(
+            '/^(\s*seed_candidates_path:\s*).*$|^(\s*seed_candidates_path:\s*)$/m',
+            '${1}${2}' . $escapedPath,
+            $content,
+            1,
+            $replacementCount
+        );
+
+        if (! is_string($updated)) {
+            throw new RuntimeException('Impossible de generer la configuration runtime company enrichment.');
+        }
+
+        if ($replacementCount === 0) {
+            $updated .= PHP_EOL . 'domain_resolution:' . PHP_EOL . '  seed_candidates_path: ' . $escapedPath . PHP_EOL;
         }
 
         $runtimeConfigPath = rtrim($outputDirectory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'runtime.config.yaml';
-        File::put($runtimeConfigPath, Yaml::dump($payload, 6, 2));
+        File::put($runtimeConfigPath, $updated);
 
         return $runtimeConfigPath;
     }
