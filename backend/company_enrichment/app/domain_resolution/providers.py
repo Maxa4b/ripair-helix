@@ -31,7 +31,7 @@ class SeedFileDomainProvider(BaseDomainProvider):
     source_type = "seed_file"
 
     def __init__(self, candidates: pl.DataFrame) -> None:
-        self.candidates = candidates
+        self.candidates = self._normalize_candidates(candidates)
 
     async def discover(self, company: CompanyTarget) -> list[dict[str, Any]]:
         if self.candidates.is_empty():
@@ -46,6 +46,14 @@ class SeedFileDomainProvider(BaseDomainProvider):
             for row in rows
             if row.get("source_url") or row.get("url") or row.get("domain")
         ]
+
+    def _normalize_candidates(self, candidates: pl.DataFrame) -> pl.DataFrame:
+        if "siren" not in candidates.columns:
+            return candidates
+
+        return candidates.with_columns(
+            pl.col("siren").cast(pl.Utf8, strict=False).str.replace_all(r"\.0$", "").str.zfill(9)
+        )
 
 
 def build_domain_providers(config: PipelineConfig) -> list[BaseDomainProvider]:
