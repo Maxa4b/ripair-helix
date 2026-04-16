@@ -213,20 +213,51 @@ class CompanyEnrichmentController extends Controller
     private function materializeRuntimeConfig(string $outputDirectory, ?string $seedCandidatesPath): string
     {
         $configPath = $this->filesystem->defaultConfigPath();
-        if ($seedCandidatesPath === null || $seedCandidatesPath === '') {
-            return $configPath;
-        }
-
         $content = (string) File::get($configPath);
         if ($content === '') {
             throw new RuntimeException('Configuration YAML vide pour company enrichment.');
         }
 
-        $escapedPath = "'" . str_replace("'", "''", $seedCandidatesPath) . "'";
+        $stateDirectory = rtrim($outputDirectory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '.state';
+        $sqlitePath = $stateDirectory . DIRECTORY_SEPARATOR . 'enrichment.sqlite3';
+        $httpCachePath = $stateDirectory . DIRECTORY_SEPARATOR . 'http_cache.sqlite3';
+
+        $updated = $this->replaceYamlScalar(
+            $content,
+            'sqlite_path',
+            $this->yamlScalar($sqlitePath)
+        );
+
+        $updated = $this->replaceYamlScalar(
+            $updated,
+            'http_cache_path',
+            $this->yamlScalar($httpCachePath)
+        );
+
+        if ($seedCandidatesPath !== null && $seedCandidatesPath !== '') {
+            $updated = $this->replaceYamlScalar(
+                $updated,
+                'seed_candidates_path',
+                $this->yamlScalar($seedCandidatesPath)
+            );
+
+            if (! str_contains($updated, $seedCandidatesPath)) {
+                $updated .= PHP_EOL . 'domain_resolution:' . PHP_EOL . '  seed_candidates_path: ' . $this->yamlScalar($seedCandidatesPath) . PHP_EOL;
+            }
+        }
+
+        $runtimeConfigPath = rtrim($outputDirectory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'runtime.config.yaml';
+        File::put($runtimeConfigPath, $updated);
+
+        return $runtimeConfigPath;
+    }
+
+    private function replaceYamlScalar(string $content, string $key, string $yamlValue): string
+    {
         $replacementCount = 0;
         $updated = preg_replace_callback(
-            '/^(\s*)seed_candidates_path:\s*.*$/m',
-            static fn (array $matches): string => $matches[1] . 'seed_candidates_path: ' . $escapedPath,
+            '/^(\s*)' . preg_quote($key, '/') . ':\s*.*$/m',
+            static fn (array $matches): string => $matches[1] . $key . ': ' . $yamlValue,
             $content,
             1,
             $replacementCount
@@ -236,14 +267,16 @@ class CompanyEnrichmentController extends Controller
             throw new RuntimeException('Impossible de generer la configuration runtime company enrichment.');
         }
 
-        if ($replacementCount === 0 || ! str_contains($updated, $seedCandidatesPath)) {
-            $updated .= PHP_EOL . 'domain_resolution:' . PHP_EOL . '  seed_candidates_path: ' . $escapedPath . PHP_EOL;
+        if ($replacementCount === 0) {
+            $updated .= PHP_EOL . $key . ': ' . $yamlValue . PHP_EOL;
         }
 
-        $runtimeConfigPath = rtrim($outputDirectory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'runtime.config.yaml';
-        File::put($runtimeConfigPath, $updated);
+        return $updated;
+    }
 
-        return $runtimeConfigPath;
+    private function yamlScalar(string $value): string
+    {
+        return "'" . str_replace("'", "''", str_replace('\\', '/', $value)) . "'";
     }
 
     private function launchRunnerProcess(string $jobId): void
