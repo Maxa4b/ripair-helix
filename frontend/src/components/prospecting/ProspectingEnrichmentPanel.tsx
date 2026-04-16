@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   downloadProspectingEnrichmentArtifact,
   useCancelProspectingEnrichmentJob,
+  useGenerateProspectingEnrichmentSeed,
   useProspectingEnrichmentFiles,
   useProspectingEnrichmentJobs,
   useStartProspectingEnrichmentJob,
@@ -59,6 +60,7 @@ export default function ProspectingEnrichmentPanel() {
   const filesQuery = useProspectingEnrichmentFiles(browserPath, browserOpen);
   const startMutation = useStartProspectingEnrichmentJob();
   const cancelMutation = useCancelProspectingEnrichmentJob();
+  const generateSeedMutation = useGenerateProspectingEnrichmentSeed();
 
   const jobs = jobsQuery.data ?? [];
 
@@ -100,6 +102,19 @@ export default function ProspectingEnrichmentPanel() {
     } catch (error) {
       console.error(error);
       window.alert('Impossible de lancer le pipeline.');
+    }
+  };
+
+  const handleGenerateSeed = async () => {
+    try {
+      const generated = await generateSeedMutation.mutateAsync();
+      setSelectedSeedPath(generated.file.path);
+      window.alert(
+        `Seed genere: ${generated.file.path}\n${generated.rows_written} ligne(s) retenue(s) sur ${generated.companies_considered} entreprise(s) inspectee(s).`,
+      );
+    } catch (error) {
+      console.error(error);
+      window.alert('Generation du domain_seed.csv impossible.');
     }
   };
 
@@ -167,6 +182,14 @@ export default function ProspectingEnrichmentPanel() {
               }}
             >
               Choisir un seed domaines
+            </button>
+            <button
+              type="button"
+              className="prospecting-button prospecting-button--ghost"
+              onClick={() => void handleGenerateSeed()}
+              disabled={generateSeedMutation.isPending}
+            >
+              {generateSeedMutation.isPending ? 'Generation...' : 'Generer le domain_seed.csv'}
             </button>
             <button
               type="button"

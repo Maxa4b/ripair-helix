@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\HelixUser;
+use App\Models\Prospecting\Company;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Laravel\Sanctum\Sanctum;
@@ -25,6 +26,7 @@ class CompanyEnrichmentApiTest extends TestCase
         parent::setUp();
 
         $base = storage_path('framework/testing/company-enrichment');
+        File::deleteDirectory($base);
         $this->inputRoot = $base . '/inputs';
         $this->jobsDirectory = $base . '/jobs';
         $this->outputRoot = $base . '/runs';
@@ -98,6 +100,51 @@ class CompanyEnrichmentApiTest extends TestCase
         $this->assertIsString($runtimeConfigPath);
         $this->assertStringContainsString('seed_candidates_path', (string) File::get($runtimeConfigPath));
         $this->assertStringContainsString('seed_domains.csv', (string) File::get($runtimeConfigPath));
+    }
+
+    public function test_owner_can_generate_domain_seed_from_prospecting_companies(): void
+    {
+        Sanctum::actingAs($this->createHelixUser('owner'));
+
+        Company::query()->create([
+            'company_id' => 'cmp_seed_01',
+            'name' => 'Acme Industrie',
+            'siren' => '123456789',
+            'website' => 'https://www.acme-industrie.fr/contact',
+            'phone' => '0102030405',
+            'address' => '1 rue de Paris',
+            'city' => 'Paris',
+            'source' => 'sirene',
+            'relevance_score' => 92,
+            'is_disabled' => false,
+        ]);
+
+        Company::query()->create([
+            'company_id' => 'cmp_seed_02',
+            'name' => 'Acme Social',
+            'siren' => '123456789',
+            'website' => 'https://facebook.com/acme-industrie',
+            'source' => 'sirene',
+            'relevance_score' => 50,
+            'is_disabled' => false,
+        ]);
+
+        $response = $this->postJson('/api/prospecting/enrichment/seed');
+
+        $response->assertOk()
+            ->assertJsonPath('data.file.path', '_generated/domain_seed.csv')
+            ->assertJsonPath('data.file.name', 'domain_seed.csv')
+            ->assertJsonPath('data.rows_written', 1)
+            ->assertJsonPath('data.unique_sirens', 1);
+
+        $seedPath = $this->inputRoot . '/_generated/domain_seed.csv';
+        $this->assertTrue(File::exists($seedPath));
+
+        $content = (string) File::get($seedPath);
+        $this->assertStringContainsString('siren,source_url,domain,source_type', $content);
+        $this->assertStringContainsString('123456789', $content);
+        $this->assertStringContainsString('https://acme-industrie.fr/contact', $content);
+        $this->assertStringNotContainsString('facebook.com', $content);
     }
 
     private function createHelixUser(string $role): HelixUser

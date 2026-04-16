@@ -20,6 +20,19 @@ export type EnrichmentRemoteListing = {
   entries: EnrichmentRemoteEntry[];
 };
 
+export type EnrichmentSeedGeneration = {
+  file: {
+    name: string;
+    path: string;
+    size: number;
+    modified_at: string;
+  };
+  rows_written: number;
+  companies_considered: number;
+  unique_sirens: number;
+  rejected_domains: string[];
+};
+
 export type EnrichmentJobPhase = {
   key: string;
   status: 'pending' | 'running' | 'completed' | 'cancelled' | 'error';
@@ -121,6 +134,15 @@ export function useStartProspectingEnrichmentJob() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['prospecting', 'enrichment', 'jobs'] });
+    },
+  });
+}
+
+export function useGenerateProspectingEnrichmentSeed() {
+  return useMutation({
+    mutationFn: async () => {
+      const response = await apiClient.post('/prospecting/enrichment/seed');
+      return (response.data.data ?? response.data) as EnrichmentSeedGeneration;
     },
   });
 }

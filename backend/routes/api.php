@@ -112,6 +112,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::prefix('enrichment')->group(function (): void {
             Route::get('files', [CompanyEnrichmentController::class, 'files']);
             Route::get('jobs', [CompanyEnrichmentController::class, 'index']);
+            Route::post('seed', [CompanyEnrichmentController::class, 'generateSeed']);
             Route::post('jobs', [CompanyEnrichmentController::class, 'store']);
             Route::get('jobs/{jobId}', [CompanyEnrichmentController::class, 'show']);
             Route::post('jobs/{jobId}/cancel', [CompanyEnrichmentController::class, 'cancel']);

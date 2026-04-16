@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\EnsuresHelixRoleAccess;
 use App\Services\CompanyEnrichment\CompanyEnrichmentFilesystemService;
 use App\Services\CompanyEnrichment\CompanyEnrichmentJobStore;
+use App\Services\CompanyEnrichment\CompanyEnrichmentSeedService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
@@ -20,6 +21,7 @@ class CompanyEnrichmentController extends Controller
     public function __construct(
         private readonly CompanyEnrichmentFilesystemService $filesystem,
         private readonly CompanyEnrichmentJobStore $jobStore,
+        private readonly CompanyEnrichmentSeedService $seedService,
     ) {
     }
 
@@ -48,6 +50,17 @@ class CompanyEnrichmentController extends Controller
 
         return response()->json([
             'data' => $this->jobStore->list((int) config('company_enrichment.job_list_limit', 15)),
+        ]);
+    }
+
+    public function generateSeed(Request $request): JsonResponse
+    {
+        $this->ensureHelixRoles($request, ['owner', 'manager']);
+
+        $payload = $this->seedService->generateFromProspectingCompanies();
+
+        return response()->json([
+            'data' => $payload,
         ]);
     }
 
@@ -211,9 +224,9 @@ class CompanyEnrichmentController extends Controller
 
         $escapedPath = "'" . str_replace("'", "''", $seedCandidatesPath) . "'";
         $replacementCount = 0;
-        $updated = preg_replace(
-            '/^(\s*seed_candidates_path:\s*).*$|^(\s*seed_candidates_path:\s*)$/m',
-            '${1}${2}' . $escapedPath,
+        $updated = preg_replace_callback(
+            '/^(\s*)seed_candidates_path:\s*.*$/m',
+            static fn (array $matches): string => $matches[1] . 'seed_candidates_path: ' . $escapedPath,
             $content,
             1,
             $replacementCount
@@ -223,7 +236,7 @@ class CompanyEnrichmentController extends Controller
             throw new RuntimeException('Impossible de generer la configuration runtime company enrichment.');
         }
 
-        if ($replacementCount === 0) {
+        if ($replacementCount === 0 || ! str_contains($updated, $seedCandidatesPath)) {
             $updated .= PHP_EOL . 'domain_resolution:' . PHP_EOL . '  seed_candidates_path: ' . $escapedPath . PHP_EOL;
         }
 

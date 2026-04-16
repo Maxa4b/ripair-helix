@@ -9,6 +9,8 @@ return [
     'input_root' => env('COMPANY_ENRICHMENT_INPUT_ROOT', storage_path('app/private/prospecting/imports')),
     'input_label' => env('COMPANY_ENRICHMENT_INPUT_LABEL', 'Sources VPS'),
     'input_extensions' => $inputExtensions,
+    'generated_seed_directory' => env('COMPANY_ENRICHMENT_GENERATED_SEED_DIRECTORY', '_generated'),
+    'generated_seed_filename' => env('COMPANY_ENRICHMENT_GENERATED_SEED_FILENAME', 'domain_seed.csv'),
     'jobs_directory' => env('COMPANY_ENRICHMENT_JOBS_DIRECTORY', storage_path('app/private/prospecting/enrichment/jobs')),
     'output_root' => env('COMPANY_ENRICHMENT_OUTPUT_ROOT', storage_path('app/private/prospecting/enrichment/runs')),
     'pipeline_root' => env('COMPANY_ENRICHMENT_PIPELINE_ROOT', base_path('company_enrichment')),

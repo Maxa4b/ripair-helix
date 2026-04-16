@@ -87,6 +87,21 @@ class CompanyEnrichmentFilesystemService
         return $directory;
     }
 
+    public function generatedSeedOutput(): array
+    {
+        $root = $this->resolvedInputRootPath();
+        $directory = trim((string) config('company_enrichment.generated_seed_directory', '_generated'), '/\\');
+        $filename = trim((string) config('company_enrichment.generated_seed_filename', 'domain_seed.csv'));
+        $relativePath = trim(($directory !== '' ? $directory . '/' : '') . $filename, '/');
+        $absolutePath = $root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
+
+        return [
+            'absolute_path' => $absolutePath,
+            'relative_path' => $relativePath,
+            'name' => basename($absolutePath),
+        ];
+    }
+
     /**
      * @return list<array{key:string,name:string,relative_path:string,size:int,modified_at:string}>
      */
