@@ -16,6 +16,13 @@ function formatProgress(value: number) {
   return `${Math.round((value || 0) * 100)}%`;
 }
 
+function parentDirectory(path: string | null) {
+  if (!path) return '_generated';
+  const normalized = path.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+  if (!normalized.includes('/')) return '';
+  return normalized.slice(0, normalized.lastIndexOf('/'));
+}
+
 function formatBytes(value: number) {
   if (value < 1024) return `${value} o`;
   if (value < 1024 ** 2) return `${(value / 1024).toFixed(1)} Ko`;
@@ -168,6 +175,7 @@ export default function ProspectingEnrichmentPanel() {
               className="prospecting-button prospecting-button--ghost"
               onClick={() => {
                 setBrowserTarget('input');
+                setBrowserPath(selectedInputPath ? parentDirectory(selectedInputPath) : '');
                 setBrowserOpen(true);
               }}
             >
@@ -178,6 +186,7 @@ export default function ProspectingEnrichmentPanel() {
               className="prospecting-button prospecting-button--ghost"
               onClick={() => {
                 setBrowserTarget('seed');
+                setBrowserPath(parentDirectory(selectedSeedPath));
                 setBrowserOpen(true);
               }}
             >
